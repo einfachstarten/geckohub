@@ -91,11 +91,16 @@ export async function GET() {
   console.log('[CACHE MISS] Fetching from Shelly Cloud API');
 
   try {
-    const promises = devices.map(async (device) => {
+    const results = [];
+
+    // ✅ SEQUENTIAL statt parallel - mit Delay zwischen Requests
+    for (let i = 0; i < devices.length; i++) {
+      const device = devices[i];
+
       if (!device.id) {
         console.warn(`[SHELLY] Missing ID for ${device.type}`);
-        return { 
-          type: device.type, 
+        results.push({
+          type: device.type,
           data: {
             output: false,
             power: 0,
@@ -106,15 +111,18 @@ export async function GET() {
             online: false,
             error: 'No ID configured'
           }
-        };
+        });
+        continue;
       }
 
       try {
-        const params = new URLSearchParams({ 
-          id: device.id, 
-          auth_key: authKey 
+        const params = new URLSearchParams({
+          id: device.id,
+          auth_key: authKey
         });
-        
+
+        console.log(`[SHELLY] Fetching ${device.name}...`);
+
         const res = await fetch(`${server}/device/status`, {
           method: 'POST',
           body: params,
@@ -125,30 +133,67 @@ export async function GET() {
         });
 
         if (!res.ok) {
-          throw new Error(`HTTP ${res.status}`);
+          // Spezielles Handling für Rate Limit
+          if (res.status === 429) {
+            console.warn(`[SHELLY] Rate Limited for ${device.name}, retrying after 1.5s...`);
+
+            // Warte 1.5 Sekunden und versuche erneut
+            await new Promise(resolve => setTimeout(resolve, 1500));
+
+            const retryRes = await fetch(`${server}/device/status`, {
+              method: 'POST',
+              body: params,
+              signal: AbortSignal.timeout(10000),
+              headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+              }
+            });
+
+            if (!retryRes.ok) {
+              throw new Error(`HTTP ${retryRes.status} (after retry)`);
+            }
+
+            const retryData = await retryRes.json();
+
+            if (!retryData.isok) {
+              throw new Error(retryData.errors?.[0] || 'Shelly API returned isok:false');
+            }
+
+            const parsedData = parseShellyStatus(retryData, device.name);
+            console.log(`[SHELLY SUCCESS - RETRY] ${device.name}:`, {
+              output: parsedData.output,
+              power: parsedData.power,
+              online: parsedData.online
+            });
+
+            results.push({ type: device.type, data: parsedData });
+
+          } else {
+            throw new Error(`HTTP ${res.status}`);
+          }
+        } else {
+          // Normaler Success Path
+          const data = await res.json();
+
+          if (!data.isok) {
+            throw new Error(data.errors?.[0] || 'Shelly API returned isok:false');
+          }
+
+          const parsedData = parseShellyStatus(data, device.name);
+
+          console.log(`[SHELLY SUCCESS] ${device.name}:`, {
+            output: parsedData.output,
+            power: parsedData.power,
+            online: parsedData.online
+          });
+
+          results.push({ type: device.type, data: parsedData });
         }
-
-        const data = await res.json();
-
-        if (!data.isok) {
-          throw new Error(data.errors?.[0] || 'Shelly API returned isok:false');
-        }
-
-        // Parse den Status mit der Helper-Funktion
-        const parsedData = parseShellyStatus(data, device.name);
-
-        console.log(`[SHELLY SUCCESS] ${device.name}:`, {
-          output: parsedData.output,
-          power: parsedData.power,
-          online: parsedData.online
-        });
-
-        return { type: device.type, data: parsedData };
 
       } catch (e) {
         console.error(`[SHELLY ERROR] ${device.name}:`, e.message);
-        return { 
-          type: device.type, 
+        results.push({
+          type: device.type,
           data: {
             output: false,
             power: 0,
@@ -159,11 +204,15 @@ export async function GET() {
             online: false,
             error: e.message
           }
-        };
+        });
       }
-    });
 
-    const results = await Promise.all(promises);
+      // ✅ Delay zwischen Requests (Rate Limit vermeiden)
+      if (i < devices.length - 1) {
+        console.log('[SHELLY] Waiting 1.2s before next request...');
+        await new Promise(resolve => setTimeout(resolve, 1200));
+      }
+    }
 
     const statusMap = results.reduce((acc, cur) => ({ 
       ...acc, 
