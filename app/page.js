@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceArea
@@ -15,12 +15,6 @@ export default function Home() {
   const [currentData, setCurrentData] = useState({ temp: '--', hum: '--' });
   const [shellyStatus, setShellyStatus] = useState({ light: false, heater: false });
   const [historyData, setHistoryData] = useState([]);
-  const [statistics, setStatistics] = useState({
-    tempMin: null,
-    tempMax: null,
-    humMin: null,
-    humMax: null
-  });
 
   // --- UI STATES ---
   const [timeRange, setTimeRange] = useState('24h'); // '24h', '7d', '30d'
@@ -31,6 +25,29 @@ export default function Home() {
     chartRefresh: false
   });
   const [switching, setSwitching] = useState(null);
+
+  // --- REFS ---
+  const isFirstLoad = useRef(true);
+
+  // --- STATISTICS (MEMOIZED) ---
+  const calculatedStatistics = useMemo(() => {
+    if (historyData.length === 0) return {
+      tempMin: null,
+      tempMax: null,
+      humMin: null,
+      humMax: null
+    };
+
+    const temps = historyData.map(d => parseFloat(d.temp)).filter(t => !isNaN(t));
+    const hums = historyData.map(d => parseInt(d.humidity)).filter(h => !isNaN(h));
+    
+    return {
+      tempMin: temps.length > 0 ? Math.min(...temps).toFixed(1) : null,
+      tempMax: temps.length > 0 ? Math.max(...temps).toFixed(1) : null,
+      humMin: hums.length > 0 ? Math.min(...hums) : null,
+      humMax: hums.length > 0 ? Math.max(...hums) : null
+    };
+  }, [historyData]);
 
   // 1. Lade History & Chart Daten
   const fetchHistory = useCallback(async () => {
@@ -58,16 +75,6 @@ export default function Home() {
             ? new Date(d.time).toLocaleDateString('de-DE', { weekday: 'short', hour: '2-digit' })
             : new Date(d.time).toLocaleDateString('de-DE', { month: 'short', day: 'numeric' })
         })));
-
-        const temps = data.map(d => parseFloat(d.temp)).filter(t => !isNaN(t));
-        const hums = data.map(d => parseInt(d.humidity)).filter(h => !isNaN(h));
-
-        setStatistics({
-          tempMin: temps.length > 0 ? Math.min(...temps).toFixed(1) : null,
-          tempMax: temps.length > 0 ? Math.max(...temps).toFixed(1) : null,
-          humMin: hums.length > 0 ? Math.min(...hums) : null,
-          humMax: hums.length > 0 ? Math.max(...hums) : null
-        });
 
         const last = data[data.length - 1];
         setCurrentData({ temp: last.temp, hum: last.humidity });
@@ -110,7 +117,9 @@ export default function Home() {
         })
         .catch(e => {
           console.error("Govee Error:", e);
-          toast.error(`Sensor offline: ${e.message}`);
+          if (isFirstLoad.current) {
+            toast.error(`Sensor offline: ${e.message}`);
+          }
           return false;
         });
 
@@ -129,21 +138,24 @@ export default function Home() {
         })
         .catch(e => {
           console.error("Shelly Error:", e);
-          toast.error(`Shelly-Geräte nicht erreichbar: ${e.message}`);
+          if (isFirstLoad.current) {
+            toast.error(`Shelly-Geräte nicht erreichbar: ${e.message}`);
+          }
           return false;
         });
 
       const [sensorSuccess, shellySuccess] = await Promise.all([sensorPromise, shellyPromise]);
 
       // Nur Success-Toast wenn initial load
-      if (loadingStates.initial && sensorSuccess && shellySuccess) {
+      if (isFirstLoad.current && sensorSuccess && shellySuccess) {
         toast.success('Dashboard geladen');
+        isFirstLoad.current = false;
       }
 
     } finally {
       setLoadingStates(prev => ({ ...prev, liveData: false }));
     }
-  }, [loadingStates.initial]);
+  }, []);
 
   // Init & Refresh Logic
   useEffect(() => {
@@ -161,11 +173,21 @@ export default function Home() {
   // Auto-Refresh alle 60 Sekunden
   useEffect(() => {
     const interval = setInterval(() => {
-      fetchLive();
+      fetch('/api/sensor').then(r => r.json()).then(d => {
+        if(d?.data?.properties) {
+          const t = d.data.properties.find(p => p.temperature);
+          const h = d.data.properties.find(p => p.humidity);
+          if(t && h) setCurrentData({ temp: t.temperature, hum: h.humidity });
+        }
+      }).catch(() => {});
+
+      fetch('/api/shelly').then(r => r.json()).then(d => {
+        if(d.success) setShellyStatus(d.status);
+      }).catch(() => {});
     }, 60000); // 60 Sekunden
 
     return () => clearInterval(interval);
-  }, [fetchLive]);
+  }, []);
 
 
   // --- ACTIONS ---
@@ -266,16 +288,16 @@ export default function Home() {
               <span className="text-5xl font-extrabold text-slate-800">{currentData.temp}</span>
               <span className="text-xl text-slate-400 ml-1">°C</span>
             </div>
-            {statistics.tempMin && statistics.tempMax && (
+            {calculatedStatistics.tempMin !== null && calculatedStatistics.tempMax !== null && (
               <div className="flex gap-4 text-xs mt-3">
                 <div className="flex items-center gap-1">
                   <span className="text-blue-500">↓</span>
-                  <span className="text-slate-600 font-medium">{statistics.tempMin}°C</span>
+                  <span className="text-slate-600 font-medium">{calculatedStatistics.tempMin}°C</span>
                   <span className="text-slate-400">min</span>
                 </div>
                 <div className="flex items-center gap-1">
                   <span className="text-red-500">↑</span>
-                  <span className="text-slate-600 font-medium">{statistics.tempMax}°C</span>
+                  <span className="text-slate-600 font-medium">{calculatedStatistics.tempMax}°C</span>
                   <span className="text-slate-400">max</span>
                 </div>
               </div>
@@ -290,16 +312,16 @@ export default function Home() {
               <span className="text-5xl font-extrabold text-slate-800">{currentData.hum}</span>
               <span className="text-xl text-slate-400 ml-1">%</span>
             </div>
-            {statistics.humMin && statistics.humMax && (
+            {calculatedStatistics.humMin !== null && calculatedStatistics.humMax !== null && (
               <div className="flex gap-4 text-xs mt-3">
                 <div className="flex items-center gap-1">
                   <span className="text-blue-500">↓</span>
-                  <span className="text-slate-600 font-medium">{statistics.humMin}%</span>
+                  <span className="text-slate-600 font-medium">{calculatedStatistics.humMin}%</span>
                   <span className="text-slate-400">min</span>
                 </div>
                 <div className="flex items-center gap-1">
                   <span className="text-red-500">↑</span>
-                  <span className="text-slate-600 font-medium">{statistics.humMax}%</span>
+                  <span className="text-slate-600 font-medium">{calculatedStatistics.humMax}%</span>
                   <span className="text-slate-400">max</span>
                 </div>
               </div>
