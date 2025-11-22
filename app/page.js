@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import toast from 'react-hot-toast';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceArea 
 } from 'recharts';
@@ -17,50 +18,123 @@ export default function Home() {
 
   // --- UI STATES ---
   const [timeRange, setTimeRange] = useState('24h'); // '24h', '7d', '30d'
-  const [loading, setLoading] = useState(true);
+  const [loadingStates, setLoadingStates] = useState({
+    initial: true,
+    liveData: false,
+    historyData: false,
+    chartRefresh: false
+  });
   const [switching, setSwitching] = useState(null);
 
   // 1. Lade History & Chart Daten
   const fetchHistory = useCallback(async () => {
+    setLoadingStates(prev => ({ ...prev, historyData: true, chartRefresh: true }));
+    
     try {
       const res = await fetch(`/api/history?range=${timeRange}`);
+      
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+      }
+      
       const data = await res.json();
 
-      if (Array.isArray(data) && data.length > 0) {
-          setHistoryData(data.map(d => ({
-              ...d,
-              // Formatiere Zeit für X-Achse je nach Range
-              displayTime: new Date(d.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-          })));
-
-          // Setze aktuelle Werte basierend auf dem allerletzten Eintrag (Realtime-Ersatz falls Govee API laggt)
-          const last = data[data.length - 1];
-          setCurrentData({ temp: last.temp, hum: last.humidity });
+      if (!Array.isArray(data)) {
+        throw new Error('Ungültiges Datenformat von API');
       }
-    } catch (e) { console.error("History Error", e); }
+
+      if (data.length > 0) {
+        setHistoryData(data.map(d => ({
+          ...d,
+          displayTime: timeRange === '24h' 
+            ? new Date(d.time).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })
+            : timeRange === '7d'
+            ? new Date(d.time).toLocaleDateString('de-DE', { weekday: 'short', hour: '2-digit' })
+            : new Date(d.time).toLocaleDateString('de-DE', { month: 'short', day: 'numeric' })
+        })));
+
+        const last = data[data.length - 1];
+        setCurrentData({ temp: last.temp, hum: last.humidity });
+      } else {
+        // Keine Daten vorhanden - kein Error, nur Info
+        if (timeRange !== '24h') {
+          toast('Keine Daten für diesen Zeitraum', { icon: 'ℹ️' });
+        }
+      }
+    } catch (e) {
+      console.error("History Fetch Error:", e);
+      toast.error(`Verlaufsdaten konnten nicht geladen werden: ${e.message}`);
+      setHistoryData([]); // Clear auf Fehler
+    } finally {
+      setLoadingStates(prev => ({ ...prev, historyData: false, chartRefresh: false }));
+    }
   }, [timeRange]);
 
   // 2. Lade Live-Daten (Govee direkt + Shelly Status)
   const fetchLive = useCallback(async () => {
-    // Govee Live
-    fetch('/api/sensor').then(r => r.json()).then(d => {
-        if(d?.data?.properties) {
-             const t = d.data.properties.find(p => p.temperature);
-             const h = d.data.properties.find(p => p.humidity);
-             if(t && h) setCurrentData({ temp: t.temperature, hum: h.humidity });
-        }
-    }).catch(() => {});
+    setLoadingStates(prev => ({ ...prev, liveData: true }));
 
-    // Shelly Status (GET) - WICHTIG: Das synchronisiert den Button beim Laden!
-    fetch('/api/shelly').then(r => r.json()).then(d => {
-        if(d.success) setShellyStatus(d.status);
-    }).catch(() => {});
-  }, []);
+    try {
+      // Govee Live Data
+      const sensorPromise = fetch('/api/sensor')
+        .then(r => {
+          if (!r.ok) throw new Error(`Sensor API: ${r.status}`);
+          return r.json();
+        })
+        .then(d => {
+          if (d?.data?.properties) {
+            const t = d.data.properties.find(p => p.temperature);
+            const h = d.data.properties.find(p => p.humidity);
+            if (t && h) {
+              setCurrentData({ temp: t.temperature, hum: h.humidity });
+              return true;
+            }
+          }
+          throw new Error('Sensor-Daten unvollständig');
+        })
+        .catch(e => {
+          console.error("Govee Error:", e);
+          toast.error(`Sensor offline: ${e.message}`);
+          return false;
+        });
+
+      // Shelly Status
+      const shellyPromise = fetch('/api/shelly')
+        .then(r => {
+          if (!r.ok) throw new Error(`Shelly API: ${r.status}`);
+          return r.json();
+        })
+        .then(d => {
+          if (d.success) {
+            setShellyStatus(d.status);
+            return true;
+          }
+          throw new Error('Shelly Status ungültig');
+        })
+        .catch(e => {
+          console.error("Shelly Error:", e);
+          toast.error(`Shelly-Geräte nicht erreichbar: ${e.message}`);
+          return false;
+        });
+
+      const [sensorSuccess, shellySuccess] = await Promise.all([sensorPromise, shellyPromise]);
+
+      // Nur Success-Toast wenn initial load
+      if (loadingStates.initial && sensorSuccess && shellySuccess) {
+        toast.success('Dashboard geladen');
+      }
+
+    } finally {
+      setLoadingStates(prev => ({ ...prev, liveData: false }));
+    }
+  }, [loadingStates.initial]);
 
   // Init & Refresh Logic
   useEffect(() => {
-    setLoading(true);
-    Promise.all([fetchLive(), fetchHistory()]).finally(() => setLoading(false));
+    setLoadingStates(prev => ({ ...prev, initial: true }));
+    Promise.all([fetchLive(), fetchHistory()]).finally(() => {
+      setLoadingStates(prev => ({ ...prev, initial: false }));
+    });
   }, [fetchLive, fetchHistory]); // Beim Start
 
   // Range Switch Effect
@@ -68,26 +142,59 @@ export default function Home() {
     fetchHistory();
   }, [timeRange, fetchHistory]);
 
+  // Auto-Refresh alle 60 Sekunden
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchLive();
+    }, 60000); // 60 Sekunden
+
+    return () => clearInterval(interval);
+  }, [fetchLive]);
+
 
   // --- ACTIONS ---
   const toggleShelly = async (target) => {
     setSwitching(target);
-    // Optimistic update
+    
     const oldState = shellyStatus[target];
+    const newState = !oldState ? 'on' : 'off';
+    const deviceName = target === 'light' ? 'Tageslicht' : 'Heizung';
+    
+    // Optimistic update
     setShellyStatus(prev => ({ ...prev, [target]: !oldState }));
 
     try {
-      const newState = !oldState ? 'on' : 'off';
       const res = await fetch('/api/shelly', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ target, action: newState })
       });
+
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+      }
+
       const json = await res.json();
-      if(!json.success) throw new Error(json.error);
+      
+      if (!json.success) {
+        throw new Error(json.error || 'Unbekannter API-Fehler');
+      }
+
+      // Success Feedback
+      toast.success(`${deviceName} wurde ${newState === 'on' ? 'eingeschaltet' : 'ausgeschaltet'}`, {
+        icon: target === 'light' ? '💡' : '🔥'
+      });
+
     } catch (e) {
-      setShellyStatus(prev => ({ ...prev, [target]: oldState })); // Rollback
-      alert("Schaltfehler!");
+      console.error(`Shelly Toggle Error (${target}):`, e);
+      
+      // Rollback
+      setShellyStatus(prev => ({ ...prev, [target]: oldState }));
+      
+      // Error Message mit Details
+      toast.error(`${deviceName} konnte nicht geschaltet werden: ${e.message}`, {
+        duration: 6000
+      });
     } finally {
       setSwitching(null);
     }
@@ -114,8 +221,19 @@ export default function Home() {
             </div>
             <h1 className="font-bold text-lg tracking-tight text-slate-800">Flitz<span className="text-emerald-500">HQ</span></h1>
           </div>
-          <button onClick={() => { fetchLive(); fetchHistory(); }} className="p-2 bg-slate-100 rounded-full hover:bg-slate-200 text-slate-600">
-            <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
+          <button 
+            onClick={() => { 
+              fetchLive(); 
+              fetchHistory(); 
+              toast('Aktualisiere Daten...', { icon: '🔄' });
+            }} 
+            className="p-2 bg-slate-100 rounded-full hover:bg-slate-200 text-slate-600 transition-colors disabled:opacity-50"
+            disabled={loadingStates.liveData || loadingStates.historyData}
+          >
+            <RefreshCw 
+              size={18} 
+              className={(loadingStates.liveData || loadingStates.historyData) ? "animate-spin" : ""} 
+            />
           </button>
         </div>
       </header>
