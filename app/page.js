@@ -1,95 +1,74 @@
 'use client';
-
 import { useState, useEffect } from 'react';
-import { RefreshCw, Thermometer, Droplets, AlertCircle } from 'lucide-react';
+import { Search, Copy } from 'lucide-react';
 
-export default function Home() {
-  const [data, setData] = useState(null);
+export default function DeviceScanner() {
+  const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
-  const fetchData = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch('/api/sensor');
-      const json = await res.json();
-      
-      if (json.error) throw new Error(json.error);
-      setData(json);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Initialer Laden
   useEffect(() => {
-    fetchData();
+    fetch('/api/scan')
+      .then(res => res.json())
+      .then(data => {
+        setResult(data);
+        setLoading(false);
+      })
+      .catch(err => {
+        setResult({ error: err.message });
+        setLoading(false);
+      });
   }, []);
 
-  // Helper um Werte aus dem Govee JSON Format zu extrahieren
-  // Govee Format: properties: [{ "temperature": 2150 }, { "humidity": 550 }]
-  // Werte sind oft als Integer * 10 oder * 100 gespeichert
-  const getProp = (key) => {
-    if (!data?.data?.properties) return '---';
-    const prop = data.data.properties.find(p => key in p);
-    if (!prop) return 'N/A';
-    
-    // Umrechnung für H5075 (Beispiel: 2450 -> 24.5 Grad)
-    // Falls deine Werte seltsam aussehen, müssen wir diesen Faktor anpassen
-    return (prop[key] / 100).toFixed(1); 
-  };
-
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-100 p-4 font-sans text-slate-800">
-      <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 border border-slate-200">
-        
-        <header className="flex justify-between items-center mb-8 border-b border-slate-100 pb-4">
-          <h1 className="text-2xl font-bold text-slate-900">FlitzHQ <span className="text-xs bg-slate-200 px-2 py-1 rounded ml-2 text-slate-500">Barebone</span></h1>
-          <button 
-            onClick={fetchData} 
-            disabled={loading}
-            className="p-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 rounded-full transition-colors disabled:opacity-50"
-          >
-            <RefreshCw className={loading ? "animate-spin" : ""} size={20} />
-          </button>
+    <div className="min-h-screen bg-slate-900 text-slate-200 p-8 font-mono">
+      <div className="max-w-3xl mx-auto">
+        <header className="mb-8 flex items-center gap-4 border-b border-slate-700 pb-4">
+          <div className="p-3 bg-blue-600 rounded-lg">
+            <Search className="text-white" size={24} />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-white">Govee Device Scanner</h1>
+            <p className="text-slate-400 text-sm">Findet die korrekte Device ID (MAC)</p>
+          </div>
         </header>
 
-        {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3 text-red-700">
-            <AlertCircle className="shrink-0 mt-0.5" size={20}/>
-            <div className="text-sm font-medium">{error}</div>
+        {loading && <div className="text-blue-400 animate-pulse">Scanne Govee API...</div>}
+
+        {result && result.data && result.data.devices && (
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold text-emerald-400">Gefundene Geräte ({result.data.devices.length})</h2>
+            {result.data.devices.map((dev, i) => (
+              <div key={i} className="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-lg">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <span className="text-xs uppercase tracking-wider text-slate-500">Name</span>
+                    <p className="text-xl font-bold text-white">{dev.deviceName}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs uppercase tracking-wider text-slate-500">Modell</span>
+                    <p className="text-white">{dev.model}</p>
+                  </div>
+                  <div className="md:col-span-2 bg-slate-950 p-4 rounded-lg border border-slate-800 flex items-center justify-between group">
+                    <div>
+                      <span className="text-xs uppercase tracking-wider text-blue-500">Device ID (MAC)</span>
+                      <p className="text-xl font-bold font-mono text-blue-300 mt-1 select-all">{dev.device}</p>
+                    </div>
+                    <Copy size={16} className="text-slate-600 group-hover:text-white transition-colors" />
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-4">
-          {/* Temperatur Karte */}
-          <div className="p-4 bg-orange-50 rounded-xl border border-orange-100 flex flex-col items-center justify-center gap-2">
-            <Thermometer className="text-orange-500" size={32} />
-            <div className="text-3xl font-bold text-slate-800">
-              {loading ? "..." : getProp('temperature')}°C
-            </div>
-            <div className="text-xs text-orange-600 font-medium uppercase tracking-wide">Temperatur</div>
+        {result && !loading && (!result.data || !result.data.devices || result.data.devices.length === 0) && (
+          <div className="p-6 bg-red-900/20 border border-red-900 rounded-xl text-red-200">
+            Keine Geräte gefunden! Prüfe, ob der Sensor in der Govee App eingerichtet und mit dem Account verknüpft ist.
+            <pre className="mt-4 text-xs bg-black/50 p-4 rounded overflow-auto">
+              {JSON.stringify(result, null, 2)}
+            </pre>
           </div>
-
-          {/* Luftfeuchtigkeit Karte */}
-          <div className="p-4 bg-blue-50 rounded-xl border border-blue-100 flex flex-col items-center justify-center gap-2">
-            <Droplets className="text-blue-500" size={32} />
-            <div className="text-3xl font-bold text-slate-800">
-              {loading ? "..." : getProp('humidity')}%
-            </div>
-            <div className="text-xs text-blue-600 font-medium uppercase tracking-wide">Feuchtigkeit</div>
-          </div>
-        </div>
-
-        <div className="mt-8 pt-4 border-t border-slate-100 text-center">
-          <p className="text-xs text-slate-400 font-mono">
-            Raw Response: {loading ? "Lade..." : (data ? "OK (Check Console for full JSON)" : "No Data")}
-          </p>
-        </div>
-
+        )}
       </div>
     </div>
   );
