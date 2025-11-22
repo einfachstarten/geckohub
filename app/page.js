@@ -12,8 +12,27 @@ import {
 
 export default function Home() {
   // --- DATA STATES ---
-  const [currentData, setCurrentData] = useState({ temp: '--', hum: '--' });
-  const [shellyStatus, setShellyStatus] = useState({ light: null, heater: null });
+  const [currentData, setCurrentData] = useState({ temp: '--', hum: '--', timestamp: null });
+  const [shellyStatus, setShellyStatus] = useState({
+    light: {
+      output: null,
+      power: null,
+      voltage: null,
+      current: null,
+      energy: null,
+      temp: null,
+      online: null
+    },
+    heater: {
+      output: null,
+      power: null,
+      voltage: null,
+      current: null,
+      energy: null,
+      temp: null,
+      online: null
+    }
+  });
   const [historyData, setHistoryData] = useState([]);
 
   // --- UI STATES ---
@@ -107,7 +126,11 @@ export default function Home() {
             const t = d.data.properties.find(p => p.temperature);
             const h = d.data.properties.find(p => p.humidity);
             if (t && h) {
-              setCurrentData({ temp: t.temperature, hum: h.humidity });
+              setCurrentData({
+                temp: t.temperature,
+                hum: h.humidity,
+                timestamp: Date.now()
+              });
               return true;
             }
           }
@@ -129,6 +152,7 @@ export default function Home() {
         })
         .then(d => {
           if (d.success) {
+            console.log('[SHELLY DATA]', d.status); // Debug
             setShellyStatus(d.status);
             return true;
           }
@@ -158,7 +182,7 @@ export default function Home() {
   const updateCurrentDataFromHistory = useCallback(() => {
     if (currentData.temp === '--' && historyData.length > 0) {
       const last = historyData[historyData.length - 1];
-      setCurrentData({ temp: last.temp, hum: last.humidity });
+      setCurrentData({ temp: last.temp, hum: last.humidity, timestamp: Date.now() });
     }
   }, [currentData, historyData]);
 
@@ -190,7 +214,7 @@ export default function Home() {
         if(d?.data?.properties) {
           const t = d.data.properties.find(p => p.temperature);
           const h = d.data.properties.find(p => p.humidity);
-          if(t && h) setCurrentData({ temp: t.temperature, hum: h.humidity });
+          if(t && h) setCurrentData({ temp: t.temperature, hum: h.humidity, timestamp: Date.now() });
         }
       }).catch(() => {});
 
@@ -208,11 +232,15 @@ export default function Home() {
     setSwitching(target);
     
     const oldState = shellyStatus[target];
-    const newState = !oldState ? 'on' : 'off';
+    const newOutputState = !oldState.output;
+    const newState = newOutputState ? 'on' : 'off';
     const deviceName = target === 'light' ? 'Tageslicht' : 'Heizung';
     
-    // Optimistic update
-    setShellyStatus(prev => ({ ...prev, [target]: !oldState }));
+    // Optimistic update - nur output ändern, Rest behalten
+    setShellyStatus(prev => ({ 
+      ...prev, 
+      [target]: { ...prev[target], output: newOutputState }
+    }));
 
     try {
       const res = await fetch('/api/shelly', {
@@ -231,16 +259,25 @@ export default function Home() {
         throw new Error(json.error || 'Unbekannter API-Fehler');
       }
 
-      // Success Feedback
       toast.success(`${deviceName} wurde ${newState === 'on' ? 'eingeschaltet' : 'ausgeschaltet'}`, {
         icon: target === 'light' ? '💡' : '🔥'
       });
+
+      // Nach erfolgreichem Schalten: Aktuellen Status laden
+      setTimeout(() => {
+        fetch('/api/shelly').then(r => r.json()).then(d => {
+          if(d.success) setShellyStatus(d.status);
+        }).catch(() => {});
+      }, 1000);
 
     } catch (e) {
       console.error(`Shelly Toggle Error (${target}):`, e);
       
       // Rollback
-      setShellyStatus(prev => ({ ...prev, [target]: oldState }));
+      setShellyStatus(prev => ({ 
+        ...prev, 
+        [target]: oldState
+      }));
       
       // Error Message mit Details
       toast.error(`${deviceName} konnte nicht geschaltet werden: ${e.message}`, {
@@ -346,24 +383,36 @@ export default function Home() {
              {/* Licht */}
              <button
                 onClick={() => toggleShelly('light')}
-                disabled={switching === 'light' || shellyStatus.light === null || loadingStates.initial}
+                disabled={switching === 'light' || shellyStatus.light.output === null || loadingStates.initial}
                 className={`flex items-center justify-between p-3 rounded-xl border-2 transition-all ${
-                  shellyStatus.light === null
+                  shellyStatus.light.output === null
                     ? 'border-slate-200 bg-slate-50 cursor-not-allowed'
-                    : shellyStatus.light
-                    ? 'border-yellow-400 bg-yellow-50'
+                    : shellyStatus.light.output 
+                    ? 'border-yellow-400 bg-yellow-50' 
                     : 'border-slate-100 hover:border-slate-200'
                 }`}
              >
                 <div className="flex items-center gap-3">
                     <div className={`p-2 rounded-full ${
-                      shellyStatus.light === null
+                      shellyStatus.light.output === null
                         ? 'bg-slate-300 text-slate-500'
-                        : shellyStatus.light
-                        ? 'bg-yellow-400 text-white'
+                        : shellyStatus.light.output 
+                        ? 'bg-yellow-400 text-white' 
                         : 'bg-slate-200 text-slate-400'
                     }`}><Lightbulb size={20}/></div>
-                    <div className="text-left"><div className="font-bold text-sm text-slate-700">Tageslicht</div><div className="text-[10px] text-slate-500 uppercase font-bold">{shellyStatus.light === null ? 'LADEN...' : shellyStatus.light ? 'AN' : 'AUS'}</div></div>
+                    <div className="text-left">
+                      <div className="font-bold text-sm text-slate-700">Tageslicht</div>
+                      <div className="text-[10px] text-slate-500 uppercase font-bold">
+                        {shellyStatus.light.output === null 
+                          ? 'LADEN...' 
+                          : shellyStatus.light.output ? 'AN' : 'AUS'}
+                      </div>
+                      {shellyStatus.light.output && shellyStatus.light.power > 0 && (
+                        <div className="text-[10px] text-yellow-600 font-semibold mt-0.5">
+                          {Math.round(shellyStatus.light.power)} W
+                        </div>
+                      )}
+                    </div>
                 </div>
                 {switching === 'light' && <RefreshCw size={16} className="animate-spin text-slate-400"/>}
              </button>
@@ -371,24 +420,36 @@ export default function Home() {
              {/* Heizung */}
              <button
                 onClick={() => toggleShelly('heater')}
-                disabled={switching === 'heater' || shellyStatus.heater === null || loadingStates.initial}
+                disabled={switching === 'heater' || shellyStatus.heater.output === null || loadingStates.initial}
                 className={`flex items-center justify-between p-3 rounded-xl border-2 transition-all ${
-                  shellyStatus.heater === null
+                  shellyStatus.heater.output === null
                     ? 'border-slate-200 bg-slate-50 cursor-not-allowed'
-                    : shellyStatus.heater
-                    ? 'border-red-400 bg-red-50'
+                    : shellyStatus.heater.output 
+                    ? 'border-red-400 bg-red-50' 
                     : 'border-slate-100 hover:border-slate-200'
                 }`}
              >
                 <div className="flex items-center gap-3">
                     <div className={`p-2 rounded-full ${
-                      shellyStatus.heater === null
+                      shellyStatus.heater.output === null
                         ? 'bg-slate-300 text-slate-500'
-                        : shellyStatus.heater
-                        ? 'bg-red-500 text-white'
+                        : shellyStatus.heater.output 
+                        ? 'bg-red-500 text-white' 
                         : 'bg-slate-200 text-slate-400'
                     }`}><Flame size={20}/></div>
-                    <div className="text-left"><div className="font-bold text-sm text-slate-700">Heizung</div><div className="text-[10px] text-slate-500 uppercase font-bold">{shellyStatus.heater === null ? 'LADEN...' : shellyStatus.heater ? 'AN' : 'AUS'}</div></div>
+                    <div className="text-left">
+                      <div className="font-bold text-sm text-slate-700">Heizung</div>
+                      <div className="text-[10px] text-slate-500 uppercase font-bold">
+                        {shellyStatus.heater.output === null 
+                          ? 'LADEN...' 
+                          : shellyStatus.heater.output ? 'AN' : 'AUS'}
+                      </div>
+                      {shellyStatus.heater.output && shellyStatus.heater.power > 0 && (
+                        <div className="text-[10px] text-red-600 font-semibold mt-0.5">
+                          {Math.round(shellyStatus.heater.power)} W
+                        </div>
+                      )}
+                    </div>
                 </div>
                 {switching === 'heater' && <RefreshCw size={16} className="animate-spin text-slate-400"/>}
              </button>
