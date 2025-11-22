@@ -26,16 +26,20 @@ export async function GET() {
         if (goveeData.payload?.capabilities) {
             const t = goveeData.payload.capabilities.find(c => c.instance === 'sensorTemperature');
             const h = goveeData.payload.capabilities.find(c => c.instance === 'sensorHumidity');
-            if (t) temp = (Number(t.state.value) - 32) * (5/9); // F -> C
+            // Umrechnung Fahrenheit -> Celsius (Govee liefert F)
+            if (t) temp = (Number(t.state.value) - 32) * (5/9); 
             if (h) hum = Number(h.state.value);
         }
     } catch (e) {
         console.error("Govee Fetch Error:", e);
     }
 
-    // --- 2. Shelly Status holen (Parallel) ---
-    const fetchShelly = async (id) => {
-        if (!id || !process.env.SHELLY_CLOUD_KEY) return null;
+    // --- 2. Shelly Status holen (Parallel & Robust) ---
+    const fetchShelly = async (id, name) => {
+        if (!id || !process.env.SHELLY_CLOUD_KEY) {
+            console.warn(`Shelly ID für ${name} fehlt in Env Vars`);
+            return null;
+        }
         try {
             const res = await fetch(`${process.env.SHELLY_SERVER}/device/status`, {
                 method: 'POST',
@@ -43,38 +47,37 @@ export async function GET() {
                 next: { revalidate: 0 }
             });
             const json = await res.json();
-            // Prüfen ob API Request erfolgreich war
+            
             if (!json.isok) {
-                console.error(`Shelly Error for ID ${id}:`, json);
-                return null;
+                console.error(`Shelly Error (${name}):`, json);
+                return null; 
             }
+            // Relays[0].ison ist der Standard für Shelly Plugs
             return json.data?.device_status?.relays?.[0]?.ison || false;
         } catch (e) {
-            console.error(`Shelly Fetch Error for ID ${id}:`, e);
+            console.error(`Shelly Fetch Exception (${name}):`, e);
             return null;
         }
     };
 
     const [lightStatus, heaterStatus] = await Promise.all([
-        fetchShelly(process.env.SHELLY_LIGHT_ID),
-        fetchShelly(process.env.SHELLY_HEATER_ID)
+        fetchShelly(process.env.SHELLY_LIGHT_ID, "Light"),
+        fetchShelly(process.env.SHELLY_HEATER_ID, "Heater")
     ]);
 
-    // Fallback: Wenn Status null (Fehler), nehmen wir false an, aber loggen es
+    // Fallback für DB: Wenn null (Fehler), speichern wir false, aber Log zeigt Fehler
     const finalLight = lightStatus === null ? false : lightStatus;
     const finalHeater = heaterStatus === null ? false : heaterStatus;
 
     // --- 3. Datenbank Migration (Self-Healing) ---
-    // Wir versuchen, die Spalte hinzuzufügen, falls sie fehlt.
-    // Das ist ein Hack für Serverless-Umgebungen ohne Migrations-Tool.
+    // Wir stellen sicher, dass die Spalte heater_status existiert
     try {
         await sql`ALTER TABLE readings ADD COLUMN IF NOT EXISTS heater_status BOOLEAN DEFAULT FALSE;`;
     } catch (e) {
-        // Ignorieren, falls Spalte schon da oder anderer DB Fehler (wir machen beim Insert weiter)
+        // Ignorieren, falls Spalte schon da
     }
 
     // --- 4. Speichern ---
-    // Wir speichern nur, wenn wir zumindest Temperaturdaten haben
     if (temp !== null) {
         await sql`
             INSERT INTO readings (temperature, humidity, light_status, heater_status) 
