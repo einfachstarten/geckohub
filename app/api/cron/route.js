@@ -1,7 +1,27 @@
 import { NextResponse } from 'next/server';
 import { sql } from '@vercel/postgres';
 
+// Rate Limiting für Cron
+let lastCronRun = 0;
+const MIN_CRON_INTERVAL_MS = 60000; // Mindestens 1 Minute zwischen Runs
+
 export async function GET() {
+  const now = Date.now();
+  const timeSinceLastRun = now - lastCronRun;
+
+  // Rate Limit Check
+  if (timeSinceLastRun < MIN_CRON_INTERVAL_MS) {
+    const waitTime = Math.ceil((MIN_CRON_INTERVAL_MS - timeSinceLastRun) / 1000);
+    console.log(`[RATE LIMIT] Cron triggered too soon. Wait ${waitTime}s`);
+    return NextResponse.json({ 
+      error: 'Rate limit exceeded',
+      message: `Bitte warte ${waitTime} Sekunden vor dem nächsten Aufruf`,
+      nextAllowedIn: waitTime
+    }, { status: 429 });
+  }
+
+  lastCronRun = now;
+
   try {
     // --- 1. Govee Daten holen ---
     let temp = null;
