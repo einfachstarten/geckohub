@@ -13,7 +13,7 @@ import {
 export default function Home() {
   // --- DATA STATES ---
   const [currentData, setCurrentData] = useState({ temp: '--', hum: '--' });
-  const [shellyStatus, setShellyStatus] = useState({ light: false, heater: false });
+  const [shellyStatus, setShellyStatus] = useState({ light: null, heater: null });
   const [historyData, setHistoryData] = useState([]);
 
   // --- UI STATES ---
@@ -76,8 +76,6 @@ export default function Home() {
             : new Date(d.time).toLocaleDateString('de-DE', { month: 'short', day: 'numeric' })
         })));
 
-        const last = data[data.length - 1];
-        setCurrentData({ temp: last.temp, hum: last.humidity });
       } else {
         // Keine Daten vorhanden - kein Error, nur Info
         if (timeRange !== '24h') {
@@ -157,6 +155,13 @@ export default function Home() {
     }
   }, []);
 
+  const updateCurrentDataFromHistory = useCallback(() => {
+    if (currentData.temp === '--' && historyData.length > 0) {
+      const last = historyData[historyData.length - 1];
+      setCurrentData({ temp: last.temp, hum: last.humidity });
+    }
+  }, [currentData, historyData]);
+
   // Init & Refresh Logic
   useEffect(() => {
     setLoadingStates(prev => ({ ...prev, initial: true }));
@@ -164,6 +169,14 @@ export default function Home() {
       setLoadingStates(prev => ({ ...prev, initial: false }));
     });
   }, [fetchLive, fetchHistory]); // Beim Start
+
+  useEffect(() => {
+    const fallbackTimer = setTimeout(() => {
+      updateCurrentDataFromHistory();
+    }, 5000);
+
+    return () => clearTimeout(fallbackTimer);
+  }, [updateCurrentDataFromHistory]);
 
   // Range Switch Effect
   useEffect(() => {
@@ -333,12 +346,24 @@ export default function Home() {
              {/* Licht */}
              <button
                 onClick={() => toggleShelly('light')}
-                disabled={switching === 'light'}
-                className={`flex items-center justify-between p-3 rounded-xl border-2 transition-all ${shellyStatus.light ? 'border-yellow-400 bg-yellow-50' : 'border-slate-100 hover:border-slate-200'}`}
+                disabled={switching === 'light' || shellyStatus.light === null || loadingStates.initial}
+                className={`flex items-center justify-between p-3 rounded-xl border-2 transition-all ${
+                  shellyStatus.light === null
+                    ? 'border-slate-200 bg-slate-50 cursor-not-allowed'
+                    : shellyStatus.light
+                    ? 'border-yellow-400 bg-yellow-50'
+                    : 'border-slate-100 hover:border-slate-200'
+                }`}
              >
                 <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-full ${shellyStatus.light ? 'bg-yellow-400 text-white' : 'bg-slate-200 text-slate-400'}`}><Lightbulb size={20}/></div>
-                    <div className="text-left"><div className="font-bold text-sm text-slate-700">Tageslicht</div><div className="text-[10px] text-slate-500 uppercase font-bold">{shellyStatus.light ? 'AN' : 'AUS'}</div></div>
+                    <div className={`p-2 rounded-full ${
+                      shellyStatus.light === null
+                        ? 'bg-slate-300 text-slate-500'
+                        : shellyStatus.light
+                        ? 'bg-yellow-400 text-white'
+                        : 'bg-slate-200 text-slate-400'
+                    }`}><Lightbulb size={20}/></div>
+                    <div className="text-left"><div className="font-bold text-sm text-slate-700">Tageslicht</div><div className="text-[10px] text-slate-500 uppercase font-bold">{shellyStatus.light === null ? 'LADEN...' : shellyStatus.light ? 'AN' : 'AUS'}</div></div>
                 </div>
                 {switching === 'light' && <RefreshCw size={16} className="animate-spin text-slate-400"/>}
              </button>
@@ -346,12 +371,24 @@ export default function Home() {
              {/* Heizung */}
              <button
                 onClick={() => toggleShelly('heater')}
-                disabled={switching === 'heater'}
-                className={`flex items-center justify-between p-3 rounded-xl border-2 transition-all ${shellyStatus.heater ? 'border-red-400 bg-red-50' : 'border-slate-100 hover:border-slate-200'}`}
+                disabled={switching === 'heater' || shellyStatus.heater === null || loadingStates.initial}
+                className={`flex items-center justify-between p-3 rounded-xl border-2 transition-all ${
+                  shellyStatus.heater === null
+                    ? 'border-slate-200 bg-slate-50 cursor-not-allowed'
+                    : shellyStatus.heater
+                    ? 'border-red-400 bg-red-50'
+                    : 'border-slate-100 hover:border-slate-200'
+                }`}
              >
                 <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-full ${shellyStatus.heater ? 'bg-red-500 text-white' : 'bg-slate-200 text-slate-400'}`}><Flame size={20}/></div>
-                    <div className="text-left"><div className="font-bold text-sm text-slate-700">Heizung</div><div className="text-[10px] text-slate-500 uppercase font-bold">{shellyStatus.heater ? 'AN' : 'AUS'}</div></div>
+                    <div className={`p-2 rounded-full ${
+                      shellyStatus.heater === null
+                        ? 'bg-slate-300 text-slate-500'
+                        : shellyStatus.heater
+                        ? 'bg-red-500 text-white'
+                        : 'bg-slate-200 text-slate-400'
+                    }`}><Flame size={20}/></div>
+                    <div className="text-left"><div className="font-bold text-sm text-slate-700">Heizung</div><div className="text-[10px] text-slate-500 uppercase font-bold">{shellyStatus.heater === null ? 'LADEN...' : shellyStatus.heater ? 'AN' : 'AUS'}</div></div>
                 </div>
                 {switching === 'heater' && <RefreshCw size={16} className="animate-spin text-slate-400"/>}
              </button>
