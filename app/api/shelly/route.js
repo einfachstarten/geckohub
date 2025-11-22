@@ -6,15 +6,65 @@ let shellyCache = {
   timestamp: 0
 };
 
-const SHELLY_CACHE_DURATION_MS = 5000; // 5 Sekunden Cache (Shelly ist schneller)
+const SHELLY_CACHE_DURATION_MS = 5000;
+
+// Helper: Parse Shelly Response
+function parseShellyStatus(apiResponse, deviceType) {
+  try {
+    const deviceStatus = apiResponse.data?.device_status;
+    
+    if (!deviceStatus) {
+      throw new Error('Keine device_status in Response');
+    }
+
+    // Status ist in "switch:0" für Shelly Plus Plugs
+    const switchData = deviceStatus['switch:0'];
+    
+    if (!switchData) {
+      console.warn(`Kein switch:0 gefunden für ${deviceType}`, deviceStatus);
+      return {
+        output: false,
+        power: 0,
+        voltage: 0,
+        current: 0,
+        energy: 0,
+        temp: null,
+        online: apiResponse.data?.online || false,
+        error: 'Kein Switch gefunden'
+      };
+    }
+
+    return {
+      output: switchData.output || false,
+      power: switchData.apower || 0, // Watt
+      voltage: switchData.voltage || 0, // Volt
+      current: switchData.current || 0, // Ampere
+      energy: switchData.aenergy?.total || 0, // kWh
+      temp: switchData.temperature?.tC || null, // Celsius
+      online: apiResponse.data?.online || false
+    };
+  } catch (e) {
+    console.error(`Parse Error für ${deviceType}:`, e);
+    return {
+      output: false,
+      power: 0,
+      voltage: 0,
+      current: 0,
+      energy: 0,
+      temp: null,
+      online: false,
+      error: e.message
+    };
+  }
+}
 
 export async function GET() {
   const authKey = process.env.SHELLY_CLOUD_KEY;
   const server = process.env.SHELLY_SERVER;
 
   const devices = [
-    { id: process.env.SHELLY_LIGHT_ID, type: 'light' },
-    { id: process.env.SHELLY_HEATER_ID, type: 'heater' }
+    { id: process.env.SHELLY_LIGHT_ID, type: 'light', name: 'Tageslicht' },
+    { id: process.env.SHELLY_HEATER_ID, type: 'heater', name: 'Heizung' }
   ];
 
   if (!authKey || !server) {
@@ -38,21 +88,40 @@ export async function GET() {
   }
 
   // Cache Miss
-  console.log('[CACHE MISS] Fetching from Shelly API');
+  console.log('[CACHE MISS] Fetching from Shelly Cloud API');
 
   try {
     const promises = devices.map(async (device) => {
       if (!device.id) {
         console.warn(`[SHELLY] Missing ID for ${device.type}`);
-        return { type: device.type, on: false, error: 'No ID configured' };
+        return { 
+          type: device.type, 
+          data: {
+            output: false,
+            power: 0,
+            voltage: 0,
+            current: 0,
+            energy: 0,
+            temp: null,
+            online: false,
+            error: 'No ID configured'
+          }
+        };
       }
 
       try {
-        const params = new URLSearchParams({ id: device.id, auth_key: authKey });
+        const params = new URLSearchParams({ 
+          id: device.id, 
+          auth_key: authKey 
+        });
+        
         const res = await fetch(`${server}/device/status`, {
           method: 'POST',
           body: params,
-          signal: AbortSignal.timeout(8000) // 8s Timeout
+          signal: AbortSignal.timeout(10000),
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+          }
         });
 
         if (!res.ok) {
@@ -62,15 +131,35 @@ export async function GET() {
         const data = await res.json();
 
         if (!data.isok) {
-          throw new Error(data.errors?.[0] || 'Shelly API Error');
+          throw new Error(data.errors?.[0] || 'Shelly API returned isok:false');
         }
 
-        const isOn = data.data?.device_status?.relays?.[0]?.ison || false;
-        return { type: device.type, on: isOn };
+        // Parse den Status mit der Helper-Funktion
+        const parsedData = parseShellyStatus(data, device.name);
+
+        console.log(`[SHELLY SUCCESS] ${device.name}:`, {
+          output: parsedData.output,
+          power: parsedData.power,
+          online: parsedData.online
+        });
+
+        return { type: device.type, data: parsedData };
 
       } catch (e) {
-        console.error(`[SHELLY ERROR] ${device.type}:`, e.message);
-        return { type: device.type, on: false, error: e.message };
+        console.error(`[SHELLY ERROR] ${device.name}:`, e.message);
+        return { 
+          type: device.type, 
+          data: {
+            output: false,
+            power: 0,
+            voltage: 0,
+            current: 0,
+            energy: 0,
+            temp: null,
+            online: false,
+            error: e.message
+          }
+        };
       }
     });
 
@@ -78,7 +167,7 @@ export async function GET() {
 
     const statusMap = results.reduce((acc, cur) => ({ 
       ...acc, 
-      [cur.type]: cur.on 
+      [cur.type]: cur.data 
     }), {});
 
     const result = { 
@@ -109,12 +198,11 @@ export async function GET() {
 
     return NextResponse.json({ 
       error: 'Shelly API nicht erreichbar',
-      details: error.message
+      details: error.message 
     }, { status: 503 });
   }
 }
 
-// POST Methode bleibt unverändert, aber füge Error Handling hinzu:
 export async function POST(request) {
   try {
     const { target, action } = await request.json();
@@ -130,8 +218,15 @@ export async function POST(request) {
     const server = process.env.SHELLY_SERVER;
 
     let deviceId = '';
-    if (target === 'light') deviceId = process.env.SHELLY_LIGHT_ID;
-    if (target === 'heater') deviceId = process.env.SHELLY_HEATER_ID;
+    let deviceName = '';
+    if (target === 'light') {
+      deviceId = process.env.SHELLY_LIGHT_ID;
+      deviceName = 'Tageslicht';
+    }
+    if (target === 'heater') {
+      deviceId = process.env.SHELLY_HEATER_ID;
+      deviceName = 'Heizung';
+    }
 
     if (!authKey || !deviceId || !server) {
       return NextResponse.json({ 
@@ -164,8 +259,9 @@ export async function POST(request) {
       throw new Error(data.errors?.[0] || 'Schaltvorgang fehlgeschlagen');
     }
 
-    // Invalidate Cache on successful control
-    console.log('[CACHE INVALIDATE] Shelly status changed');
+    console.log(`[SHELLY CONTROL SUCCESS] ${deviceName} → ${turn}`);
+
+    // Invalidate Cache
     shellyCache.timestamp = 0;
 
     return NextResponse.json({ 
