@@ -1,14 +1,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { RefreshCw, Thermometer, Droplets, AlertCircle, Lightbulb, Power } from 'lucide-react';
+import { RefreshCw, Thermometer, Droplets, AlertCircle, Lightbulb, Flame } from 'lucide-react';
 
 export default function Home() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [lightState, setLightState] = useState(false);
-  const [lightLoading, setLightLoading] = useState(false);
+  const [heaterState, setHeaterState] = useState(false);
+  const [switching, setSwitching] = useState(null);
 
   const fetchData = async () => {
     setLoading(true);
@@ -25,14 +26,30 @@ export default function Home() {
     }
   };
 
-  const toggleLight = async () => {
-    // ... (bleibt gleich wie vorher, siehe Shelly Ticket) ...
-    // Hier der Kürze halber nur Platzhalter, bitte Shelly-Code beibehalten/einfügen
-    setLightLoading(true);
-    setTimeout(() => {
-      setLightState(!lightState);
-      setLightLoading(false);
-    }, 500);
+  const toggleShelly = async (target) => {
+    setSwitching(target);
+    const currentState = target === 'light' ? lightState : heaterState;
+    const newState = !currentState ? 'on' : 'off';
+
+    try {
+      const res = await fetch('/api/shelly', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ target, action: newState })
+      });
+      const json = await res.json();
+      
+      if (json.success) {
+        if (target === 'light') setLightState(!lightState);
+        if (target === 'heater') setHeaterState(!heaterState);
+      } else {
+        alert('Fehler: ' + json.error);
+      }
+    } catch (e) {
+      alert('Verbindungsfehler');
+    } finally {
+      setSwitching(null);
+    }
   };
 
   useEffect(() => {
@@ -75,23 +92,48 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
-          <div className="flex items-center gap-3">
-            <Lightbulb className={lightState ? "text-emerald-500" : "text-slate-400"} size={24} />
-            <div>
-              <p className="text-sm font-semibold text-slate-800">Shelly</p>
-              <p className="text-xs text-slate-500">(Placeholder: bitte echten Shelly-Code einfügen)</p>
+        {/* Shelly Controls */}
+        <div className="grid grid-cols-1 gap-4">
+          {/* Licht Steuerung */}
+          <div className={`p-4 rounded-xl border flex items-center justify-between transition-colors ${lightState ? 'bg-yellow-50 border-yellow-200' : 'bg-slate-50 border-slate-200'}`}>
+            <div className="flex items-center gap-3">
+              <div className={`p-2 rounded-full ${lightState ? 'bg-yellow-400 text-white' : 'bg-slate-200 text-slate-400'}`}>
+                <Lightbulb size={20} />
+              </div>
+              <div>
+                <p className="font-bold text-slate-700">Beleuchtung</p>
+                <p className="text-xs text-slate-500">Terrarium Hauptlicht</p>
+              </div>
             </div>
+            <button 
+              onClick={() => toggleShelly('light')}
+              disabled={switching === 'light'}
+              className="px-4 py-2 rounded-lg bg-white border border-slate-200 shadow-sm text-sm font-bold text-slate-600 hover:bg-slate-50 active:scale-95 transition-all"
+            >
+              {switching === 'light' ? '...' : (lightState ? 'Ausschalten' : 'Einschalten')}
+            </button>
           </div>
-          <button
-            onClick={toggleLight}
-            disabled={lightLoading}
-            className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-semibold transition-colors ${
-              lightState ? 'bg-emerald-500 border-emerald-600 text-white' : 'bg-white border-slate-200 text-slate-700'
-            } ${lightLoading ? 'opacity-60' : ''}`}
-          >
-            <Power size={16} /> {lightLoading ? 'Lädt...' : lightState ? 'An' : 'Aus'}
-          </button>
+
+          {/* Heizung Steuerung */}
+          <div className={`p-4 rounded-xl border flex items-center justify-between transition-colors ${heaterState ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-200'}`}>
+            <div className="flex items-center gap-3">
+              <div className={`p-2 rounded-full ${heaterState ? 'bg-red-500 text-white' : 'bg-slate-200 text-slate-400'}`}>
+                <Flame size={20} />
+              </div>
+              <div>
+                <p className="font-bold text-slate-700">Heizung</p>
+                <p className="text-xs text-slate-500">Zusatz-Wärmequelle</p>
+              </div>
+            </div>
+            <button 
+              onClick={() => toggleShelly('heater')}
+              disabled={switching === 'heater'}
+              className="px-4 py-2 rounded-lg bg-white border border-slate-200 shadow-sm text-sm font-bold text-slate-600 hover:bg-slate-50 active:scale-95 transition-all"
+            >
+              {switching === 'heater' ? '...' : (heaterState ? 'Ausschalten' : 'Einschalten')}
+            </button>
+          </div>
+
         </div>
       </div>
     </div>
