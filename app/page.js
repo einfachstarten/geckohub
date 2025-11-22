@@ -24,22 +24,24 @@ export default function Home() {
     }
   };
 
-  // Initialer Laden
   useEffect(() => {
     fetchData();
   }, []);
 
   // Helper um Werte aus dem Govee JSON Format zu extrahieren
-  // Govee Format: properties: [{ "temperature": 2150 }, { "humidity": 550 }]
-  // Werte sind oft als Integer * 10 oder * 100 gespeichert
   const getProp = (key) => {
     if (!data?.data?.properties) return '---';
     const prop = data.data.properties.find(p => key in p);
     if (!prop) return 'N/A';
     
-    // Umrechnung für H5075 (Beispiel: 2450 -> 24.5 Grad)
-    // Falls deine Werte seltsam aussehen, müssen wir diesen Faktor anpassen
-    return (prop[key] / 100).toFixed(1); 
+    // Govee H5179 liefert Werte oft als Integer * 100 (z.B. 2150 = 21.5°C)
+    // Wir probieren es mit / 100. Falls die Werte komisch sind (z.B. 0.2 Grad), ändern wir es auf / 1 oder / 10.
+    let val = prop[key];
+    // Einfache Heuristik: Wenn Temp > 1000, dann ist es wohl *100
+    if (key === 'temperature' && val > 1000) val = val / 100;
+    if (key === 'humidity' && val > 1000) val = val / 100;
+    
+    return Number(val).toFixed(1); 
   };
 
   return (
@@ -47,7 +49,7 @@ export default function Home() {
       <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 border border-slate-200">
         
         <header className="flex justify-between items-center mb-8 border-b border-slate-100 pb-4">
-          <h1 className="text-2xl font-bold text-slate-900">FlitzHQ <span className="text-xs bg-slate-200 px-2 py-1 rounded ml-2 text-slate-500">Barebone</span></h1>
+          <h1 className="text-2xl font-bold text-slate-900">FlitzHQ <span className="text-xs bg-slate-200 px-2 py-1 rounded ml-2 text-slate-500">H5179</span></h1>
           <button 
             onClick={fetchData} 
             disabled={loading}
@@ -65,7 +67,6 @@ export default function Home() {
         )}
 
         <div className="grid grid-cols-2 gap-4">
-          {/* Temperatur Karte */}
           <div className="p-4 bg-orange-50 rounded-xl border border-orange-100 flex flex-col items-center justify-center gap-2">
             <Thermometer className="text-orange-500" size={32} />
             <div className="text-3xl font-bold text-slate-800">
@@ -74,7 +75,6 @@ export default function Home() {
             <div className="text-xs text-orange-600 font-medium uppercase tracking-wide">Temperatur</div>
           </div>
 
-          {/* Luftfeuchtigkeit Karte */}
           <div className="p-4 bg-blue-50 rounded-xl border border-blue-100 flex flex-col items-center justify-center gap-2">
             <Droplets className="text-blue-500" size={32} />
             <div className="text-3xl font-bold text-slate-800">
@@ -85,8 +85,8 @@ export default function Home() {
         </div>
 
         <div className="mt-8 pt-4 border-t border-slate-100 text-center">
-          <p className="text-xs text-slate-400 font-mono">
-            Raw Response: {loading ? "Lade..." : (data ? "OK (Check Console for full JSON)" : "No Data")}
+          <p className="text-xs text-slate-400 font-mono break-all">
+            {loading ? "Lade..." : (data ? JSON.stringify(data).substring(0, 100) + "..." : "No Data")}
           </p>
         </div>
 

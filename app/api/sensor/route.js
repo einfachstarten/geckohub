@@ -3,7 +3,8 @@ import { NextResponse } from 'next/server';
 export async function GET() {
   const apiKey = process.env.GOVEE_API_KEY;
   const mac = process.env.GOVEE_MAC_ADDRESS;
-  const model = "H5075"; // Govee Hygrometer Standard-Modell
+  // WICHTIG: Modellnummer für den WiFi Sensor des Users
+  const model = "H5179"; 
 
   if (!apiKey || !mac) {
     return NextResponse.json({ error: 'Konfiguration fehlt (API Key oder MAC)' }, { status: 500 });
@@ -16,7 +17,7 @@ export async function GET() {
         'Govee-API-Key': apiKey,
         'Content-Type': 'application/json',
       },
-      next: { revalidate: 10 } // Cache: Nur alle 10 Sekunden neu abfragen
+      next: { revalidate: 10 }
     });
 
     if (!response.ok) {
