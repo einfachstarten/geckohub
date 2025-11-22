@@ -28,11 +28,14 @@ export default function Home() {
     fetchData();
   }, []);
 
+  // Helper um Werte aus dem Govee JSON Format zu extrahieren
   const getProp = (key) => {
     if (!data?.data?.properties) return '---';
     const prop = data.data.properties.find((p) => key in p);
     if (!prop) return 'N/A';
 
+    // Govee H5179 liefert Werte oft als Integer * 100 (z.B. 2150 = 21.5°C)
+    // Wir probieren es mit / 100. Falls die Werte komisch sind (z.B. 0.2 Grad), ändern wir es auf / 1 oder / 10.
     let val = prop[key];
     if ((key === 'temperature' || key === 'humidity') && val > 1000) {
       val = val / 100;
