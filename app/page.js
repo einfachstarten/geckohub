@@ -3,11 +3,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { 
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceArea 
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceArea
 } from 'recharts';
-import { 
-  Thermometer, Droplets, Lightbulb, Flame, Activity, RefreshCw, 
-  Calendar, Sun, Moon
+import {
+  Thermometer, Droplets, Lightbulb, Flame, Activity, RefreshCw,
+  Calendar
 } from 'lucide-react';
 
 export default function Home() {
@@ -15,6 +15,12 @@ export default function Home() {
   const [currentData, setCurrentData] = useState({ temp: '--', hum: '--' });
   const [shellyStatus, setShellyStatus] = useState({ light: false, heater: false });
   const [historyData, setHistoryData] = useState([]);
+  const [statistics, setStatistics] = useState({
+    tempMin: null,
+    tempMax: null,
+    humMin: null,
+    humMax: null
+  });
 
   // --- UI STATES ---
   const [timeRange, setTimeRange] = useState('24h'); // '24h', '7d', '30d'
@@ -46,12 +52,22 @@ export default function Home() {
       if (data.length > 0) {
         setHistoryData(data.map(d => ({
           ...d,
-          displayTime: timeRange === '24h' 
+          displayTime: timeRange === '24h'
             ? new Date(d.time).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })
             : timeRange === '7d'
             ? new Date(d.time).toLocaleDateString('de-DE', { weekday: 'short', hour: '2-digit' })
             : new Date(d.time).toLocaleDateString('de-DE', { month: 'short', day: 'numeric' })
         })));
+
+        const temps = data.map(d => parseFloat(d.temp)).filter(t => !isNaN(t));
+        const hums = data.map(d => parseInt(d.humidity)).filter(h => !isNaN(h));
+
+        setStatistics({
+          tempMin: temps.length > 0 ? Math.min(...temps).toFixed(1) : null,
+          tempMax: temps.length > 0 ? Math.max(...temps).toFixed(1) : null,
+          humMin: hums.length > 0 ? Math.min(...hums) : null,
+          humMax: hums.length > 0 ? Math.max(...hums) : null
+        });
 
         const last = data[data.length - 1];
         setCurrentData({ temp: last.temp, hum: last.humidity });
@@ -244,22 +260,50 @@ export default function Home() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Temp */}
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 relative overflow-hidden">
-             <div className="absolute top-0 right-0 p-4 opacity-5"><Thermometer size={120} /></div>
-             <p className="text-slate-400 text-xs font-bold uppercase tracking-wider">Temperatur</p>
-             <div className="flex items-baseline mt-1">
-               <span className="text-5xl font-extrabold text-slate-800">{currentData.temp}</span>
-               <span className="text-xl text-slate-400 ml-1">°C</span>
-             </div>
+            <div className="absolute top-0 right-0 p-4 opacity-5"><Thermometer size={120} /></div>
+            <p className="text-slate-400 text-xs font-bold uppercase tracking-wider">Temperatur</p>
+            <div className="flex items-baseline mt-1 mb-2">
+              <span className="text-5xl font-extrabold text-slate-800">{currentData.temp}</span>
+              <span className="text-xl text-slate-400 ml-1">°C</span>
+            </div>
+            {statistics.tempMin && statistics.tempMax && (
+              <div className="flex gap-4 text-xs mt-3">
+                <div className="flex items-center gap-1">
+                  <span className="text-blue-500">↓</span>
+                  <span className="text-slate-600 font-medium">{statistics.tempMin}°C</span>
+                  <span className="text-slate-400">min</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="text-red-500">↑</span>
+                  <span className="text-slate-600 font-medium">{statistics.tempMax}°C</span>
+                  <span className="text-slate-400">max</span>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Humidity */}
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 relative overflow-hidden">
-             <div className="absolute top-0 right-0 p-4 opacity-5"><Droplets size={120} /></div>
-             <p className="text-slate-400 text-xs font-bold uppercase tracking-wider">Feuchtigkeit</p>
-             <div className="flex items-baseline mt-1">
-               <span className="text-5xl font-extrabold text-slate-800">{currentData.hum}</span>
-               <span className="text-xl text-slate-400 ml-1">%</span>
-             </div>
+            <div className="absolute top-0 right-0 p-4 opacity-5"><Droplets size={120} /></div>
+            <p className="text-slate-400 text-xs font-bold uppercase tracking-wider">Feuchtigkeit</p>
+            <div className="flex items-baseline mt-1 mb-2">
+              <span className="text-5xl font-extrabold text-slate-800">{currentData.hum}</span>
+              <span className="text-xl text-slate-400 ml-1">%</span>
+            </div>
+            {statistics.humMin && statistics.humMax && (
+              <div className="flex gap-4 text-xs mt-3">
+                <div className="flex items-center gap-1">
+                  <span className="text-blue-500">↓</span>
+                  <span className="text-slate-600 font-medium">{statistics.humMin}%</span>
+                  <span className="text-slate-400">min</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="text-red-500">↑</span>
+                  <span className="text-slate-600 font-medium">{statistics.humMax}%</span>
+                  <span className="text-slate-400">max</span>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Controls */}
@@ -295,7 +339,36 @@ export default function Home() {
         {/* Chart Section */}
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
           <div className="flex justify-between items-center mb-6">
-            <h3 className="font-bold text-slate-700 flex items-center gap-2"><Calendar size={18} className="text-emerald-500"/> Verlauf</h3>
+            <div className="flex items-center gap-6">
+              <h3 className="font-bold text-slate-700 flex items-center gap-2">
+                <Calendar size={18} className="text-emerald-500"/> 
+                Verlauf
+              </h3>
+              {/* Legend */}
+              <div className="flex gap-4 text-xs">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-3 h-0.5 bg-red-500"></div>
+                  <span className="text-slate-600">Temperatur</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-3 h-0.5 bg-blue-500"></div>
+                  <span className="text-slate-600">Feuchtigkeit</span>
+                </div>
+                {historyData.some(d => d.light !== undefined) && (
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-2 h-2 rounded-full bg-yellow-400"></div>
+                    <span className="text-slate-600">Licht</span>
+                  </div>
+                )}
+                {historyData.some(d => d.heater !== undefined) && (
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                    <span className="text-slate-600">Heizung</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
             <div className="flex bg-slate-50 p-1 rounded-lg">
                 <TimeRangeBtn r="24h" label="24 Std" />
                 <TimeRangeBtn r="7d" label="7 Tage" />
@@ -303,30 +376,151 @@ export default function Home() {
             </div>
           </div>
           
-          <div className="h-72 w-full">
-            {historyData.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={historyData}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                    <XAxis dataKey="displayTime" tick={{fontSize: 10, fill: '#94a3b8'}} axisLine={false} tickLine={false} interval="preserveStartEnd" minTickGap={30}/>
-                    <YAxis yAxisId="left" domain={['auto', 'auto']} tick={{fontSize: 11, fill: '#ef4444'}} axisLine={false} tickLine={false} />
-                    <YAxis yAxisId="right" orientation="right" domain={[0, 100]} tick={{fontSize: 11, fill: '#3b82f6'}} axisLine={false} tickLine={false} />
-                    <Tooltip
-                        contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px -2px rgb(0 0 0 / 0.1)'}}
-                        labelStyle={{color: '#94a3b8', fontSize: '12px', marginBottom: '4px'}}
-                    />
-                    {/* Tag/Nacht Indikator für 24h View */}
-                    {timeRange === '24h' && (
+            <div className="h-72 w-full">
+              {historyData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={historyData}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+
+                      {/* X-Axis mit dynamischem Interval */}
+                      <XAxis
+                        dataKey="displayTime"
+                        tick={{fontSize: 10, fill: '#94a3b8'}}
+                        axisLine={false}
+                        tickLine={false}
+                        interval={timeRange === '30d' ? 'preserveEnd' : 'preserveStartEnd'}
+                        minTickGap={timeRange === '24h' ? 20 : 40}
+                        angle={timeRange === '30d' ? -45 : 0}
+                        textAnchor={timeRange === '30d' ? 'end' : 'middle'}
+                        height={timeRange === '30d' ? 60 : 30}
+                      />
+
+                      {/* Left Y-Axis: Temperature */}
+                      <YAxis
+                        yAxisId="left"
+                        domain={['dataMin - 1', 'dataMax + 1']}
+                        tick={{fontSize: 11, fill: '#ef4444'}}
+                        axisLine={false}
+                        tickLine={false}
+                        label={{ value: '°C', angle: -90, position: 'insideLeft', style: { fontSize: 10, fill: '#94a3b8' } }}
+                      />
+
+                      {/* Right Y-Axis: Humidity */}
+                      <YAxis
+                        yAxisId="right"
+                        orientation="right"
+                        domain={[0, 100]}
+                        tick={{fontSize: 11, fill: '#3b82f6'}}
+                        axisLine={false}
+                        tickLine={false}
+                        label={{ value: '%', angle: 90, position: 'insideRight', style: { fontSize: 10, fill: '#94a3b8' } }}
+                      />
+
+                      {/* Tooltip mit Custom Content */}
+                      <Tooltip
+                        content={({ active, payload }) => {
+                          if (!active || !payload || payload.length === 0) return null;
+                          const data = payload[0].payload;
+                          return (
+                            <div className="bg-white p-4 rounded-xl shadow-lg border border-slate-200">
+                              <p className="text-slate-500 text-xs mb-2 font-semibold">{data.displayTime}</p>
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                                  <span className="text-sm text-slate-700 font-medium">{data.temp}°C</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                                  <span className="text-sm text-slate-700 font-medium">{data.humidity}%</span>
+                                </div>
+                                {data.light !== undefined && (
+                                  <div className="flex items-center gap-2 mt-2 pt-2 border-t border-slate-100">
+                                    <div className={`w-2 h-2 rounded-full ${data.light ? 'bg-yellow-400' : 'bg-slate-300'}`}></div>
+                                    <span className="text-xs text-slate-600">Licht {data.light ? 'AN' : 'AUS'}</span>
+                                  </div>
+                                )}
+                                {data.heater !== undefined && (
+                                  <div className="flex items-center gap-2">
+                                    <div className={`w-2 h-2 rounded-full ${data.heater ? 'bg-red-500' : 'bg-slate-300'}`}></div>
+                                    <span className="text-xs text-slate-600">Heizung {data.heater ? 'AN' : 'AUS'}</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        }}
+                      />
+
+                      {/* Reference Areas für Tag/Nacht (nur bei 24h) */}
+                      {timeRange === '24h' && historyData.length > 0 && (
                         <>
-                           <ReferenceArea x1={0} x2={8} yAxisId="left" fill="#eef2ff" fillOpacity={0.4} />
-                           <ReferenceArea x1={20} x2={24} yAxisId="left" fill="#eef2ff" fillOpacity={0.4} />
+                          <ReferenceArea
+                            x1={historyData[0]?.displayTime}
+                            x2={historyData.find(d => {
+                              const hour = new Date(d.time).getHours();
+                              return hour >= 6;
+                            })?.displayTime}
+                            yAxisId="left"
+                            fill="#1e293b"
+                            fillOpacity={0.05}
+                            label={{ value: '🌙', position: 'insideTopLeft', style: { fontSize: 16 } }}
+                          />
+                          <ReferenceArea
+                            x1={historyData.find(d => {
+                              const hour = new Date(d.time).getHours();
+                              return hour >= 20;
+                            })?.displayTime}
+                            x2={historyData[historyData.length - 1]?.displayTime}
+                            yAxisId="left"
+                            fill="#1e293b"
+                            fillOpacity={0.05}
+                            label={{ value: '🌙', position: 'insideTopRight', style: { fontSize: 16 } }}
+                          />
                         </>
-                    )}
-                    <Line yAxisId="left" type="monotone" dataKey="temp" stroke="#ef4444" strokeWidth={3} dot={false} activeDot={{r: 6}} name="Temp" unit="°C" />
-                    <Line yAxisId="right" type="monotone" dataKey="humidity" stroke="#3b82f6" strokeWidth={3} dot={false} activeDot={{r: 6}} name="Feuchte" unit="%" />
-                  </LineChart>
-                </ResponsiveContainer>
-            ) : (
+                      )}
+
+                      {/* Temperature Line */}
+                      <Line
+                        yAxisId="left"
+                        type="monotone"
+                        dataKey="temp"
+                        stroke="#ef4444"
+                        strokeWidth={3}
+                        dot={false}
+                        activeDot={{r: 6, fill: '#ef4444', stroke: '#fff', strokeWidth: 2}}
+                        name="Temperatur"
+                      />
+
+                      {/* Humidity Line */}
+                      <Line
+                        yAxisId="right"
+                        type="monotone"
+                        dataKey="humidity"
+                        stroke="#3b82f6"
+                        strokeWidth={3}
+                        dot={false}
+                        activeDot={{r: 6, fill: '#3b82f6', stroke: '#fff', strokeWidth: 2}}
+                        name="Feuchtigkeit"
+                      />
+
+                      {/* Light Status Area (optional, nur wenn gewünscht) */}
+                      {historyData.some(d => d.light) && (
+                        <Line
+                          yAxisId="left"
+                          type="stepAfter"
+                          dataKey={(d) => d.light ? 1 : 0}
+                          stroke="#fbbf24"
+                          strokeWidth={0}
+                          fill="#fef3c7"
+                          fillOpacity={0.2}
+                          dot={false}
+                          name="Licht Status"
+                          connectNulls
+                        />
+                      )}
+                    </LineChart>
+                  </ResponsiveContainer>
+              ) : (
                 <div className="h-full flex flex-col items-center justify-center text-slate-400">
                     <Activity size={48} className="mb-2 opacity-20" />
                     <p>Sammle Daten... (Warte auf ersten Cron-Job)</p>
