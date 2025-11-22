@@ -12,7 +12,7 @@ import {
 
 export default function Home() {
   // --- DATA STATES ---
-  const [currentData, setCurrentData] = useState({ temp: '--', hum: '--', timestamp: null });
+  const [currentData, setCurrentData] = useState({ temp: '--', hum: '--', timestamp: 0 });
   const [shellyStatus, setShellyStatus] = useState({
     light: {
       output: null,
@@ -48,6 +48,32 @@ export default function Home() {
   // --- REFS ---
   const isFirstLoad = useRef(true);
 
+  // --- CHART DATA (inkl. Live-Daten) ---
+  const chartData = useMemo(() => {
+    if (historyData.length === 0) return [];
+
+    const data = [...historyData];
+
+    if (currentData.temp !== '--' && currentData.hum !== '--') {
+      const lastHistoryTime = new Date(data[data.length - 1].time).getTime();
+      const currentTime = currentData.timestamp || Date.now();
+
+      if (currentTime > lastHistoryTime) {
+        data.push({
+          time: new Date(currentTime).toISOString(),
+          temp: currentData.temp,
+          humidity: currentData.hum,
+          light: null,
+          heater: null,
+          displayTime: 'Jetzt',
+          isLive: true
+        });
+      }
+    }
+
+    return data;
+  }, [historyData, currentData]);
+
   // --- STATISTICS (MEMOIZED) ---
   const calculatedStatistics = useMemo(() => {
     if (historyData.length === 0) return {
@@ -58,13 +84,13 @@ export default function Home() {
     };
 
     const temps = historyData.map(d => parseFloat(d.temp)).filter(t => !isNaN(t));
-    const hums = historyData.map(d => parseInt(d.humidity)).filter(h => !isNaN(h));
-    
+    const hums = historyData.map(d => parseFloat(d.humidity)).filter(h => !isNaN(h));
+
     return {
       tempMin: temps.length > 0 ? Math.min(...temps).toFixed(1) : null,
       tempMax: temps.length > 0 ? Math.max(...temps).toFixed(1) : null,
-      humMin: hums.length > 0 ? Math.min(...hums) : null,
-      humMax: hums.length > 0 ? Math.max(...hums) : null
+      humMin: hums.length > 0 ? Math.min(...hums).toFixed(1) : null,
+      humMax: hums.length > 0 ? Math.max(...hums).toFixed(1) : null
     };
   }, [historyData]);
 
@@ -459,7 +485,7 @@ export default function Home() {
         {/* Chart Section */}
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
           <div className="flex justify-between items-center mb-6">
-            <div className="flex items-center gap-6">
+          <div className="flex items-center gap-6">
               <h3 className="font-bold text-slate-700 flex items-center gap-2">
                 <Calendar size={18} className="text-emerald-500"/> 
                 Verlauf
@@ -497,9 +523,9 @@ export default function Home() {
           </div>
           
             <div className="h-72 w-full">
-              {historyData.length > 0 ? (
+              {chartData.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={historyData}>
+                    <LineChart data={chartData}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
 
                       {/* X-Axis mit dynamischem Interval */}
@@ -529,11 +555,12 @@ export default function Home() {
                       <YAxis
                         yAxisId="right"
                         orientation="right"
-                        domain={[0, 100]}
+                        domain={['dataMin - 5', 'dataMax + 5']}
                         tick={{fontSize: 11, fill: '#3b82f6'}}
                         axisLine={false}
                         tickLine={false}
                         label={{ value: '%', angle: 90, position: 'insideRight', style: { fontSize: 10, fill: '#94a3b8' } }}
+                        allowDataOverflow={false}
                       />
 
                       {/* Tooltip mit Custom Content */}
@@ -543,7 +570,12 @@ export default function Home() {
                           const data = payload[0].payload;
                           return (
                             <div className="bg-white p-4 rounded-xl shadow-lg border border-slate-200">
-                              <p className="text-slate-500 text-xs mb-2 font-semibold">{data.displayTime}</p>
+                              <div className="flex items-center gap-2 mb-2">
+                                <p className="text-slate-500 text-xs font-semibold">{data.displayTime}</p>
+                                {data.isLive && (
+                                  <span className="px-1.5 py-0.5 bg-green-100 text-green-700 text-[9px] font-bold rounded uppercase">Live</span>
+                                )}
+                              </div>
                               <div className="space-y-1">
                                 <div className="flex items-center gap-2">
                                   <div className="w-3 h-3 rounded-full bg-red-500"></div>
@@ -553,13 +585,13 @@ export default function Home() {
                                   <div className="w-3 h-3 rounded-full bg-blue-500"></div>
                                   <span className="text-sm text-slate-700 font-medium">{data.humidity}%</span>
                                 </div>
-                                {data.light !== undefined && (
+                                {data.light !== undefined && data.light !== null && (
                                   <div className="flex items-center gap-2 mt-2 pt-2 border-t border-slate-100">
                                     <div className={`w-2 h-2 rounded-full ${data.light ? 'bg-yellow-400' : 'bg-slate-300'}`}></div>
                                     <span className="text-xs text-slate-600">Licht {data.light ? 'AN' : 'AUS'}</span>
                                   </div>
                                 )}
-                                {data.heater !== undefined && (
+                                {data.heater !== undefined && data.heater !== null && (
                                   <div className="flex items-center gap-2">
                                     <div className={`w-2 h-2 rounded-full ${data.heater ? 'bg-red-500' : 'bg-slate-300'}`}></div>
                                     <span className="text-xs text-slate-600">Heizung {data.heater ? 'AN' : 'AUS'}</span>
@@ -618,7 +650,22 @@ export default function Home() {
                         dataKey="humidity"
                         stroke="#3b82f6"
                         strokeWidth={3}
-                        dot={false}
+                        dot={(props) => {
+                          const { cx, cy, payload } = props;
+                          if (payload?.isLive) {
+                            return (
+                              <circle
+                                cx={cx}
+                                cy={cy}
+                                r={6}
+                                fill="#3b82f6"
+                                stroke="#fff"
+                                strokeWidth={3}
+                              />
+                            );
+                          }
+                          return null;
+                        }}
                         activeDot={{r: 6, fill: '#3b82f6', stroke: '#fff', strokeWidth: 2}}
                         name="Feuchtigkeit"
                       />

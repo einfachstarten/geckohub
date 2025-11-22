@@ -60,9 +60,9 @@ export async function GET(request) {
     const result = await query;
 
     const formatted = result.rows.map(row => ({
-      time: row.timestamp, 
+      time: row.timestamp,
       temp: row.temperature ? Number(row.temperature).toFixed(1) : null,
-      humidity: row.humidity ? Math.round(Number(row.humidity)) : null,
+      humidity: row.humidity ? parseFloat(Number(row.humidity).toFixed(1)) : null,
       light: row.light_status,
       heater: row.heater_status
     }));
