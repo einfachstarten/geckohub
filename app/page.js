@@ -178,9 +178,9 @@ export default function Home() {
 
     if (lightEvents.length === 0) return [];
 
-    // Zeitbereich aus historyData
-    const chartStart = new Date(historyData[0].time);
-    const chartEnd = new Date(historyData[historyData.length - 1].time);
+    // historyData ist DESC sortiert (neueste zuerst)
+    const chartStart = new Date(historyData[historyData.length - 1].time);
+    const chartEnd = new Date(historyData[0].time);
 
     const periods = [];
     let currentState = lightEvents[0].action; // 'on' oder 'off'
@@ -234,8 +234,9 @@ export default function Home() {
 
     if (heaterEvents.length === 0) return [];
 
-    const chartStart = new Date(historyData[0].time);
-    const chartEnd = new Date(historyData[historyData.length - 1].time);
+    // historyData ist DESC sortiert (neueste zuerst)
+    const chartStart = new Date(historyData[historyData.length - 1].time);
+    const chartEnd = new Date(historyData[0].time);
 
     const periods = [];
     let currentState = heaterEvents[0].action;
