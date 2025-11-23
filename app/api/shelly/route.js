@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { sql } from '@vercel/postgres';
 import { getShellyStatus, invalidateShellyCache, refreshShellyCache } from '@/lib/shellyStatus';
 
 export async function GET() {
@@ -73,6 +74,26 @@ export async function POST(request) {
 
     invalidateShellyCache();
     await refreshShellyCache();
+
+    // Log Event to Database
+    try {
+      await sql`
+        INSERT INTO device_events (device, action, source, metadata)
+        VALUES (
+          ${target},
+          ${turn},
+          'user',
+          ${JSON.stringify({
+            deviceId,
+            timestamp: new Date().toISOString()
+          })}
+        );
+      `;
+      console.log(`[EVENT LOGGED] ${target} turned ${turn}`);
+    } catch (eventError) {
+      // Event-Logging darf Control nicht blockieren
+      console.error('[EVENT LOG ERROR]', eventError);
+    }
 
     return NextResponse.json({
       success: true,

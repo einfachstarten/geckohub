@@ -48,6 +48,28 @@ export default function Home() {
     } catch (e) { console.error("History Error", e); }
   }, [timeRange]);
 
+  const fetchEvents = useCallback(async (hours = 24) => {
+    try {
+      const res = await fetch(`/api/events?hours=${hours}`);
+      
+      if (!res.ok) {
+        throw new Error(`Events API: ${res.status}`);
+      }
+      
+      const data = await res.json();
+      
+      console.log('[EVENTS]', data.events);
+      // TODO: State für Events hinzufügen wenn Chart-Integration kommt
+      // setDeviceEvents(data.events);
+      
+      return data.events;
+      
+    } catch (e) {
+      console.error('[EVENTS ERROR]', e);
+      return [];
+    }
+  }, []);
+
   const fetchShellyStatus = useCallback(async () => {
     try {
       const res = await fetch('/api/status');
