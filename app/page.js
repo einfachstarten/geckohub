@@ -201,21 +201,21 @@ export default function Home() {
              </button>
 
              {/* Heizung Button */}
-             <button 
+             <button
                 onClick={() => toggleShelly('heater')}
                 disabled={switching === 'heater'}
-                className={`relative group w-full flex items-center justify-between p-4 rounded-2xl border transition-all duration-300 overflow-hidden
-                  ${shellyStatus.heater 
-                    ? 'bg-red-500/10 border-red-500/50 hover:bg-red-500/20' 
-                    : 'bg-neutral-800/40 border-white/5 hover:bg-neutral-800/60'}`}
+                className={`relative group w-full flex items-center justify-between p-4 rounded-2xl border transition-all duration-300 ease-in-out overflow-hidden
+                  ${shellyStatus.heater
+                    ? 'bg-gradient-to-br from-orange-50 to-red-50 border-orange-500/70 hover:border-orange-300 hover:bg-orange-50/60 shadow-lg shadow-orange-200/50 ring-2 ring-orange-400/20'
+                    : 'bg-neutral-800/40 border-white/5 hover:bg-neutral-800/60 hover:border-orange-300/40'}`}
              >
-                <div className={`absolute inset-0 bg-red-500/20 blur-xl transition-opacity duration-500 ${shellyStatus.heater ? 'opacity-100' : 'opacity-0'}`}></div>
+                <div className={`absolute inset-0 bg-gradient-to-br from-orange-400/15 to-red-500/20 blur-xl transition-opacity duration-500 ${shellyStatus.heater ? 'opacity-100' : 'opacity-0'}`}></div>
                 <div className="relative flex items-center gap-4">
-                    <div className={`p-3 rounded-xl transition-colors ${shellyStatus.heater ? 'bg-red-500 text-white' : 'bg-neutral-800 text-neutral-400'}`}>
-                        <Flame size={20} fill={shellyStatus.heater ? "currentColor" : "none"} />
+                    <div className={`p-3 rounded-xl transition-all ${shellyStatus.heater ? 'bg-gradient-to-br from-orange-400 to-red-500 text-white shadow-md shadow-orange-200/60 animate-pulse' : 'bg-slate-200 text-neutral-500'}`}>
+                        <Flame size={22} fill={shellyStatus.heater ? "currentColor" : "none"} />
                     </div>
                     <div className="text-left">
-                        <span className={`block font-bold text-sm ${shellyStatus.heater ? 'text-red-100' : 'text-neutral-300'}`}>Heizung</span>
+                        <span className={`block font-bold text-sm ${shellyStatus.heater ? 'text-orange-900' : 'text-neutral-300'}`}>Heizung</span>
                         <span className="text-xs text-neutral-500 font-medium uppercase tracking-wide">{shellyStatus.heater ? 'Aktiv' : 'Standby'}</span>
                     </div>
                 </div>
