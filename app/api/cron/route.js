@@ -79,6 +79,40 @@ export async function GET(request) {
 
     const [goveeData, shellyData] = await Promise.all([goveePromise, shellyPromise]);
 
+    // Auto-Event Logging bei Status-Änderung
+    try {
+      const { rows } = await sql`
+        SELECT light_status, heater_status 
+        FROM readings 
+        ORDER BY timestamp DESC 
+        LIMIT 1;
+      `;
+
+      const lastState = rows[0] || { light_status: false, heater_status: false };
+      const lightStatus = shellyData ? shellyData.light : null;
+      const heaterStatus = shellyData ? shellyData.heater : null;
+
+      if (lightStatus !== null && lightStatus !== lastState.light_status) {
+        await sql`
+          INSERT INTO device_events (device, action, source)
+          VALUES ('light', ${lightStatus ? 'on' : 'off'}, 'automation');
+        `;
+        console.log(`[AUTO EVENT] Light changed to ${lightStatus}`);
+      }
+
+      if (heaterStatus !== null && heaterStatus !== lastState.heater_status) {
+        await sql`
+          INSERT INTO device_events (device, action, source)
+          VALUES ('heater', ${heaterStatus ? 'on' : 'off'}, 'automation');
+        `;
+        console.log(`[AUTO EVENT] Heater changed to ${heaterStatus}`);
+      }
+
+    } catch (e) {
+      console.error('[AUTO EVENT ERROR]', e);
+      // Nicht kritisch, weiter machen
+    }
+
     // 3. Speichern
     if (goveeData && goveeData.temp !== null) {
         if (!shellyData) {
