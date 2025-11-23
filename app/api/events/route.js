@@ -30,18 +30,21 @@ export async function GET(request) {
   console.log(`[CACHE MISS] Fetching events (${cacheKey})`);
 
   try {
+    // FIX: Berechne Cutoff-Zeit in JavaScript statt SQL INTERVAL
+    const cutoffTime = new Date(Date.now() - hours * 60 * 60 * 1000);
+
     // SQL Query mit optionalem Device-Filter
     const query = device
       ? sql`
           SELECT * FROM device_events
-          WHERE timestamp > NOW() - INTERVAL '${hours} hours'
+          WHERE timestamp > ${cutoffTime}
             AND device = ${device}
           ORDER BY timestamp DESC
           LIMIT 500;
         `
       : sql`
           SELECT * FROM device_events
-          WHERE timestamp > NOW() - INTERVAL '${hours} hours'
+          WHERE timestamp > ${cutoffTime}
           ORDER BY timestamp DESC
           LIMIT 500;
         `;
