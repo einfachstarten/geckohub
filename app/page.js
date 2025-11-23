@@ -17,6 +17,7 @@ export default function Home() {
   const [currentData, setCurrentData] = useState({ temp: '--', hum: '--' });
   const [shellyStatus, setShellyStatus] = useState({ light: false, heater: false });
   const [historyData, setHistoryData] = useState([]);
+  const [deviceEvents, setDeviceEvents] = useState([]);
 
   // UI States
   const [timeRange, setTimeRange] = useState('24h');
@@ -48,7 +49,11 @@ export default function Home() {
     } catch (e) { console.error("History Error", e); }
   }, [timeRange]);
 
-  const fetchEvents = useCallback(async (hours = 24) => {
+  // NEU: Lade Device Events für Chart-Visualisierung
+  const fetchEvents = useCallback(async () => {
+    const hoursMap = { '24h': 24, '7d': 168, '30d': 720 };
+    const hours = hoursMap[timeRange] || 24;
+
     try {
       const res = await fetch(`/api/events?hours=${hours}`);
       
@@ -58,17 +63,15 @@ export default function Home() {
       
       const data = await res.json();
       
-      console.log('[EVENTS]', data.events);
-      // TODO: State für Events hinzufügen wenn Chart-Integration kommt
-      // setDeviceEvents(data.events);
-      
-      return data.events;
-      
+      if (data.events && Array.isArray(data.events)) {
+        setDeviceEvents(data.events);
+      }
     } catch (e) {
       console.error('[EVENTS ERROR]', e);
-      return [];
+      // Events sind optional - kein Toast bei Fehler
+      setDeviceEvents([]);
     }
-  }, []);
+  }, [timeRange]);
 
   const fetchShellyStatus = useCallback(async () => {
     try {
@@ -113,13 +116,18 @@ export default function Home() {
   useEffect(() => {
     if (!isAuthenticated) return;
     setLoading(true);
-    Promise.all([fetchLive(), fetchHistory()]).finally(() => setLoading(false));
-    const interval = setInterval(() => { fetchLive(); fetchHistory(); }, 60000);
+    Promise.all([fetchLive(), fetchHistory(), fetchEvents()]).finally(() => setLoading(false));
+    const interval = setInterval(() => { fetchLive(); fetchHistory(); fetchEvents(); }, 60000);
     return () => clearInterval(interval);
-  }, [fetchLive, fetchHistory, isAuthenticated]);
+  }, [fetchLive, fetchHistory, fetchEvents, isAuthenticated]);
 
   // Range Switch
-  useEffect(() => { if (isAuthenticated) fetchHistory(); }, [timeRange, fetchHistory, isAuthenticated]);
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchHistory();
+      fetchEvents();
+    }
+  }, [timeRange, fetchHistory, fetchEvents, isAuthenticated]);
 
   const toggleShelly = async (target) => {
     setSwitching(target);
@@ -158,6 +166,117 @@ export default function Home() {
       {label}
     </button>
   );
+
+  // Helper: Berechne "Nacht"-Perioden (Licht AUS) aus Events
+  const calculateNightPeriods = useCallback(() => {
+    if (!historyData.length || !deviceEvents.length) return [];
+
+    // Filter nur Licht-Events
+    const lightEvents = deviceEvents
+      .filter(e => e.device === 'light')
+      .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+    if (lightEvents.length === 0) return [];
+
+    // Zeitbereich aus historyData
+    const chartStart = new Date(historyData[0].time);
+    const chartEnd = new Date(historyData[historyData.length - 1].time);
+
+    const periods = [];
+    let currentState = lightEvents[0].action; // 'on' oder 'off'
+    let periodStart = chartStart;
+
+    lightEvents.forEach((event) => {
+      const eventTime = new Date(event.timestamp);
+      
+      if (eventTime < chartStart) {
+        // Event ist vor Chart-Bereich → State übernehmen
+        currentState = event.action;
+        return;
+      }
+
+      if (eventTime > chartEnd) return; // Event nach Chart → ignorieren
+
+      // Wenn Licht ausgeht → Nacht-Periode beginnt
+      if (event.action === 'off' && currentState === 'on') {
+        periodStart = eventTime;
+      }
+      
+      // Wenn Licht angeht → Nacht-Periode endet
+      if (event.action === 'on' && currentState === 'off') {
+        periods.push({
+          start: periodStart.getTime(),
+          end: eventTime.getTime()
+        });
+      }
+
+      currentState = event.action;
+    });
+
+    // Falls Chart mit "Licht AUS" endet
+    if (currentState === 'off') {
+      periods.push({
+        start: periodStart.getTime(),
+        end: chartEnd.getTime()
+      });
+    }
+
+    return periods;
+  }, [historyData, deviceEvents]);
+
+  // Helper: Berechne Heizungs-Events für Indikator-Linie
+  const calculateHeaterPeriods = useCallback(() => {
+    if (!historyData.length || !deviceEvents.length) return [];
+
+    const heaterEvents = deviceEvents
+      .filter(e => e.device === 'heater')
+      .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+    if (heaterEvents.length === 0) return [];
+
+    const chartStart = new Date(historyData[0].time);
+    const chartEnd = new Date(historyData[historyData.length - 1].time);
+
+    const periods = [];
+    let currentState = heaterEvents[0].action;
+    let periodStart = chartStart;
+
+    heaterEvents.forEach((event) => {
+      const eventTime = new Date(event.timestamp);
+      
+      if (eventTime < chartStart) {
+        currentState = event.action;
+        return;
+      }
+
+      if (eventTime > chartEnd) return;
+
+      if (event.action === 'off' && currentState === 'on') {
+        periods.push({
+          start: periodStart.getTime(),
+          end: eventTime.getTime()
+        });
+      }
+      
+      if (event.action === 'on' && currentState === 'off') {
+        periodStart = eventTime;
+      }
+
+      currentState = event.action;
+    });
+
+    if (currentState === 'on') {
+      periods.push({
+        start: periodStart.getTime(),
+        end: chartEnd.getTime()
+      });
+    }
+
+    return periods;
+  }, [historyData, deviceEvents]);
+
+  const nightPeriods = calculateNightPeriods();
+  const heaterPeriods = calculateHeaterPeriods();
 
   if (!authChecked) {
     return (
@@ -219,7 +338,12 @@ export default function Home() {
                   <Lock size={18} />
                 </button>
                 <button
-                  onClick={() => { fetchLive(); fetchHistory(); }}
+                  onClick={() => { 
+                    fetchLive(); 
+                    fetchHistory(); 
+                    fetchEvents();
+                    toast('Aktualisiere Daten...', { icon: '🔄' });
+                  }}
                   className={`p-2 bg-slate-800/60 backdrop-blur-sm rounded-full border border-slate-700/50 hover:border-slate-600 hover:bg-slate-700/80 transition-all text-slate-300 hover:text-slate-100 ${loading ? 'animate-spin text-emerald-400' : ''}`}
                 >
                   <RefreshCw size={18} />
@@ -370,38 +494,74 @@ export default function Home() {
             {historyData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={historyData}>
-                    <defs>
-                        <linearGradient id="colorTemp" x1="0" y1="0" x2="1" y2="0">
-                            <stop offset="5%" stopColor="#ef4444" stopOpacity={0.8}/>
-                            <stop offset="95%" stopColor="#f87171" stopOpacity={0.8}/>
-                        </linearGradient>
-                        <linearGradient id="colorHum" x1="0" y1="0" x2="1" y2="0">
-                            <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8}/>
-                            <stop offset="95%" stopColor="#60a5fa" stopOpacity={0.8}/>
-                        </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" />
-                    <XAxis dataKey="displayTime" tick={{fontSize: 10, fill: '#64748b'}} axisLine={false} tickLine={false} interval="preserveStartEnd" minTickGap={30}/>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                    <XAxis dataKey="displayTime" tick={{fontSize: 10, fill: '#94a3b8'}} axisLine={false} tickLine={false} interval="preserveStartEnd" minTickGap={30}/>
                     <YAxis yAxisId="left" domain={['auto', 'auto']} tick={{fontSize: 11, fill: '#ef4444'}} axisLine={false} tickLine={false} />
                     <YAxis yAxisId="right" orientation="right" domain={[0, 100]} tick={{fontSize: 11, fill: '#3b82f6'}} axisLine={false} tickLine={false} />
                     <Tooltip
-                        contentStyle={{
-                          borderRadius: '12px',
-                          border: '1px solid #475569',
-                          boxShadow: '0 10px 25px -5px rgb(0 0 0 / 0.5)',
-                          background: '#1e293b',
-                          color: '#e2e8f0'
-                        }}
+                        contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px -2px rgb(0 0 0 / 0.1)'}}
                         labelStyle={{color: '#94a3b8', fontSize: '12px', marginBottom: '4px'}}
                     />
-                    {timeRange === '24h' && (
-                        <>
-                           <ReferenceArea x1={0} x2={8} yAxisId="left" fill="#1e293b" fillOpacity={0.6} />
-                           <ReferenceArea x1={20} x2={24} yAxisId="left" fill="#1e293b" fillOpacity={0.6} />
-                        </>
-                    )}
-                    <Line yAxisId="left" type="monotone" dataKey="temp" stroke="url(#colorTemp)" strokeWidth={4} dot={false} activeDot={{r: 6, fill: '#ef4444'}} name="Temp" unit="°C" />
-                    <Line yAxisId="right" type="monotone" dataKey="humidity" stroke="url(#colorHum)" strokeWidth={4} dot={false} activeDot={{r: 6, fill: '#3b82f6'}} name="Feuchte" unit="%" />
+                    
+                    {/* Nacht-Perioden (Licht AUS) */}
+                    {nightPeriods.map((period, idx) => {
+                      // Finde Data Indizes für Start/End
+                      const startIdx = historyData.findIndex(d => new Date(d.time).getTime() >= period.start);
+                      const endIdx = historyData.findIndex(d => new Date(d.time).getTime() >= period.end);
+                      
+                      if (startIdx === -1) return null;
+                      
+                      const x1 = historyData[startIdx]?.displayTime;
+                      const x2 = endIdx === -1 
+                        ? historyData[historyData.length - 1]?.displayTime 
+                        : historyData[endIdx]?.displayTime;
+
+                      return (
+                        <ReferenceArea 
+                          key={`night-${idx}`}
+                          x1={x1} 
+                          x2={x2} 
+                          yAxisId="left" 
+                          fill="#1e293b" 
+                          fillOpacity={0.08}
+                          strokeOpacity={0}
+                        />
+                      );
+                    })}
+
+                    {/* Heizungs-Perioden (am unteren Rand) */}
+                    {heaterPeriods.map((period, idx) => {
+                      const startIdx = historyData.findIndex(d => new Date(d.time).getTime() >= period.start);
+                      const endIdx = historyData.findIndex(d => new Date(d.time).getTime() >= period.end);
+                      
+                      if (startIdx === -1) return null;
+                      
+                      const x1 = historyData[startIdx]?.displayTime;
+                      const x2 = endIdx === -1 
+                        ? historyData[historyData.length - 1]?.displayTime 
+                        : historyData[endIdx]?.displayTime;
+
+                      // Y-Bereich: Am unteren Chart-Rand
+                      const yMin = Math.min(...historyData.map(d => parseFloat(d.temp) || 0));
+                      const yMax = yMin + 1; // 1°C hoher Streifen
+
+                      return (
+                        <ReferenceArea 
+                          key={`heater-${idx}`}
+                          x1={x1} 
+                          x2={x2} 
+                          y1={yMin}
+                          y2={yMax}
+                          yAxisId="left" 
+                          fill="#f97316" 
+                          fillOpacity={0.6}
+                          strokeOpacity={0}
+                        />
+                      );
+                    })}
+
+                    <Line yAxisId="left" type="monotone" dataKey="temp" stroke="#ef4444" strokeWidth={3} dot={false} activeDot={{r: 6}} name="Temp" unit="°C" />
+                    <Line yAxisId="right" type="monotone" dataKey="humidity" stroke="#3b82f6" strokeWidth={3} dot={false} activeDot={{r: 6}} name="Feuchte" unit="%" />
                   </LineChart>
                 </ResponsiveContainer>
             ) : (
