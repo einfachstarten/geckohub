@@ -177,21 +177,42 @@ export default function Home() {
     const chartEnd = Math.max(...timestamps);
 
     // Filtere Events im Chart-Zeitbereich
-    return deviceEvents
+    const filtered = deviceEvents
       .filter(event => {
         const eventTime = new Date(event.timestamp).getTime();
         return eventTime >= chartStart && eventTime <= chartEnd;
       })
-      .map(event => ({
-        timestamp: new Date(event.timestamp).getTime(),
-        displayTime: new Date(event.timestamp).toLocaleTimeString([], {
-          hour: '2-digit',
-          minute: '2-digit'
-        }),
-        device: event.device,
-        action: event.action,
-        source: event.source
-      }));
+      .map(event => {
+        const eventDate = new Date(event.timestamp);
+        const eventTimeMs = eventDate.getTime();
+
+        // Snap Event auf den nächsten History-Datenpunkt, damit ReferenceLine-X exakt matcht
+        const closestDataPoint = historyData.reduce((closest, dataPoint) => {
+          const dataTime = new Date(dataPoint.time).getTime();
+          const closestTime = new Date(closest.time).getTime();
+          const currentDiff = Math.abs(dataTime - eventTimeMs);
+          const closestDiff = Math.abs(closestTime - eventTimeMs);
+          return currentDiff < closestDiff ? dataPoint : closest;
+        }, historyData[0]);
+
+        return {
+          timestamp: eventTimeMs,
+          displayTime: closestDataPoint.displayTime,
+          device: event.device,
+          action: event.action,
+          source: event.source
+        };
+      });
+
+    if (filtered.length > 0) {
+      console.log('[CHART EVENTS] mapped', {
+        count: filtered.length,
+        sample: filtered[0],
+        historySample: historyData.slice(0, 3).map(d => d.displayTime)
+      });
+    }
+
+    return filtered;
   }, [historyData, deviceEvents]);
 
   const chartEvents = getChartEvents();
@@ -452,14 +473,10 @@ export default function Home() {
                           label={{
                             value: labelText,
                             position: labelPosition,
-                            fontSize: 11,
+                            fontSize: 12,
                             fontWeight: 'bold',
                             fill: color,
-                            opacity: 0.9,
-                            offset: 8,
-                            style: {
-                              textShadow: '0 0 3px rgba(0,0,0,0.8)'
-                            }
+                            offset: 10
                           }}
                         />
                       );
