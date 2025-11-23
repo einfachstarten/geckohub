@@ -98,10 +98,10 @@ export default function Home() {
   const TimeRangeBtn = ({ r, label }) => (
     <button
       onClick={() => setTimeRange(r)}
-      className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${
+      className={`px-3 py-1 text-xs font-bold rounded-md border transition-all ${
         timeRange === r
-          ? 'bg-emerald-100/90 text-emerald-700'
-          : 'text-slate-500 hover:text-slate-700 hover:bg-white/40'
+          ? 'bg-emerald-400/20 text-emerald-100 border-emerald-400/50 shadow-[0_0_12px_rgba(16,185,129,0.35)]'
+          : 'text-slate-300 border-white/10 hover:text-white hover:bg-white/10'
       }`}
     >
       {label}
@@ -116,30 +116,31 @@ export default function Home() {
             src="/images/background.jpg"
             alt=""
             fill
-            className="object-cover opacity-25"
+            className="object-cover opacity-40"
             priority
             quality={90}
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-slate-900/30 via-transparent to-slate-900/20" />
+          <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-slate-900/85 to-emerald-950/70 mix-blend-multiply" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_15%,rgba(16,185,129,0.12),transparent_35%),radial-gradient(circle_at_80%_10%,rgba(239,68,68,0.12),transparent_35%),radial-gradient(circle_at_60%_80%,rgba(59,130,246,0.12),transparent_40%)]" />
         </div>
 
-        <div className="min-h-screen bg-transparent text-slate-800 font-sans pb-10 selection:bg-emerald-500/30">
+        <div className="min-h-screen bg-transparent text-slate-100 font-sans pb-10 selection:bg-emerald-400/30">
 
           {/* Header */}
-          <header className="bg-white/80 backdrop-blur-xl border-b border-white/20 sticky top-0 z-20 shadow-lg">
+          <header className="bg-white/5 backdrop-blur-2xl border-b border-white/10 sticky top-0 z-20 shadow-[0_10px_30px_rgba(0,0,0,0.45)]">
             <div className="max-w-6xl mx-auto px-6 h-20 flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-900/20">
+                <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 via-teal-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-800/40 ring-1 ring-white/20">
                   <Activity size={22} className="text-white" />
                 </div>
                 <div>
-                  <h1 className="font-bold text-xl tracking-tight text-slate-900">Jungle<span className="text-emerald-500">Glass</span></h1>
-                  <p className="text-xs text-slate-500 font-medium tracking-wider uppercase">Sir Flitzalot HQ</p>
+                  <h1 className="font-bold text-xl tracking-tight text-slate-50">Jungle<span className="text-emerald-400">Glass</span></h1>
+                  <p className="text-[11px] text-slate-400 font-semibold tracking-[0.25em] uppercase">Sir Flitzalot HQ</p>
                 </div>
               </div>
               <button
                 onClick={() => { fetchLive(); fetchHistory(); }}
-                className={`p-2 bg-white/60 backdrop-blur-sm rounded-full hover:bg-white/80 transition-all ${loading ? 'animate-spin text-emerald-500' : 'text-slate-500'}`}
+                className={`p-2 bg-white/10 backdrop-blur-sm rounded-full border border-white/10 hover:border-white/30 hover:bg-white/15 transition-all ${loading ? 'animate-spin text-emerald-400' : 'text-slate-200'}`}
               >
                 <RefreshCw size={18} />
               </button>
@@ -152,102 +153,109 @@ export default function Home() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
             {/* Temperatur Card */}
-            <div className="relative bg-white/85 backdrop-blur-md rounded-2xl p-6 shadow-xl border border-white/30 overflow-hidden group transition-all duration-500">
-               <div className="absolute -right-6 -top-6 w-32 h-32 bg-red-500/10 rounded-full blur-2xl group-hover:bg-red-500/20 transition-all"></div>
+            <div className="relative bg-white/10 backdrop-blur-2xl rounded-2xl p-6 shadow-[0_20px_60px_rgba(0,0,0,0.45)] border border-white/10 overflow-hidden group transition-all duration-500">
+               <div className="absolute -right-10 -top-16 w-40 h-40 bg-gradient-to-br from-orange-500/20 via-amber-400/10 to-rose-500/15 rounded-full blur-3xl opacity-80 group-hover:opacity-100 transition-all" />
+               <div className="absolute -left-6 bottom-[-60px] w-40 h-40 bg-gradient-to-tr from-emerald-500/10 to-teal-400/5 rounded-full blur-3xl" />
+               <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-white/40 to-transparent" />
                <div className="relative z-10">
                   <div className="flex justify-between items-start mb-2">
-                     <p className="text-slate-500 text-xs font-bold uppercase tracking-widest">Temperatur</p>
-                     <Thermometer size={24} className="text-slate-400 group-hover:text-red-400 transition-colors"/>
+                     <p className="text-slate-300 text-xs font-bold uppercase tracking-widest">Temperatur</p>
+                     <Thermometer size={24} className="text-amber-200 group-hover:text-orange-300 transition-colors"/>
                   </div>
                   <div className="flex items-baseline gap-2">
-                     <span className="text-6xl font-bold text-slate-900 tracking-tighter">{currentData.temp}</span>
-                     <span className="text-2xl text-slate-500 font-light">°C</span>
+                     <span className="text-6xl font-bold text-white tracking-tighter drop-shadow-[0_8px_25px_rgba(0,0,0,0.45)]">{currentData.temp}</span>
+                     <span className="text-2xl text-slate-300 font-light">°C</span>
                   </div>
                   <div className="mt-6 flex items-center gap-2">
-                     <div className={`w-2 h-2 rounded-full ${currentData.temp > 0 ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]' : 'bg-slate-300'}`}></div>
-                     <span className="text-xs font-medium text-emerald-600">Live Sensor</span>
+                     <div className={`w-2 h-2 rounded-full ${currentData.temp > 0 ? 'bg-amber-400 shadow-[0_0_14px_rgba(251,191,36,0.75)]' : 'bg-slate-500'}`}></div>
+                     <span className="text-xs font-semibold text-amber-100">Heat signature online</span>
+                  </div>
+                  <div className="mt-5 h-2 w-full bg-white/5 rounded-full overflow-hidden">
+                    <div className="h-full bg-gradient-to-r from-amber-500/70 via-orange-500/70 to-rose-500/50 animate-pulse" style={{ width: '85%' }} />
                   </div>
                </div>
             </div>
-
             {/* Humidity Card */}
-            <div className="relative bg-white/85 backdrop-blur-md rounded-2xl p-6 shadow-xl border border-white/30 overflow-hidden group transition-all duration-500">
-               <div className="absolute -right-6 -top-6 w-32 h-32 bg-blue-500/10 rounded-full blur-2xl group-hover:bg-blue-500/20 transition-all"></div>
+            <div className="relative bg-white/10 backdrop-blur-2xl rounded-2xl p-6 shadow-[0_20px_60px_rgba(0,0,0,0.45)] border border-white/10 overflow-hidden group transition-all duration-500">
+               <div className="absolute -right-10 -top-16 w-40 h-40 bg-gradient-to-br from-blue-500/20 via-cyan-400/15 to-indigo-500/15 rounded-full blur-3xl opacity-80 group-hover:opacity-100 transition-all" />
+               <div className="absolute left-6 bottom-6 w-1.5 h-6 bg-gradient-to-b from-cyan-200/70 to-blue-500/60 rounded-full animate-drop-fall" style={{ animationDuration: '4s' }} />
+               <div className="absolute left-10 bottom-10 w-1 h-4 bg-gradient-to-b from-sky-200/60 to-blue-600/60 rounded-full animate-drop-fall" style={{ animationDuration: '3.2s', animationDelay: '0.6s' }} />
                <div className="relative z-10">
                   <div className="flex justify-between items-start mb-2">
-                     <p className="text-slate-500 text-xs font-bold uppercase tracking-widest">Feuchtigkeit</p>
-                     <Droplets size={24} className="text-slate-400 group-hover:text-blue-400 transition-colors"/>
+                     <p className="text-slate-300 text-xs font-bold uppercase tracking-widest">Feuchtigkeit</p>
+                     <Droplets size={24} className="text-sky-200 group-hover:text-cyan-200 transition-colors"/>
                   </div>
                   <div className="flex items-baseline gap-2">
-                     <span className="text-6xl font-bold text-slate-900 tracking-tighter">{currentData.hum}</span>
-                     <span className="text-2xl text-slate-500 font-light">%</span>
+                     <span className="text-6xl font-bold text-white tracking-tighter drop-shadow-[0_8px_25px_rgba(0,0,0,0.45)]">{currentData.hum}</span>
+                     <span className="text-2xl text-slate-300 font-light">%</span>
                   </div>
                   <div className="mt-6 flex items-center gap-2">
-                     <div className={`w-2 h-2 rounded-full ${currentData.hum > 0 ? 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.6)]' : 'bg-slate-300'}`}></div>
-                     <span className="text-xs font-medium text-blue-600">Live Sensor</span>
+                     <div className={`w-2 h-2 rounded-full ${currentData.hum > 0 ? 'bg-sky-400 shadow-[0_0_14px_rgba(56,189,248,0.75)]' : 'bg-slate-500'}`}></div>
+                     <span className="text-xs font-semibold text-sky-100">Tropenfeuchte aktiv</span>
+                  </div>
+                  <div className="mt-5 h-2 w-full bg-white/5 rounded-full overflow-hidden">
+                    <div className="h-full bg-gradient-to-r from-sky-400/70 via-indigo-400/70 to-emerald-400/60 animate-[pulse_2.5s_ease-in-out_infinite]" style={{ width: '72%' }} />
                   </div>
                </div>
             </div>
-
             {/* Control Panel */}
-            <div className="bg-white/85 backdrop-blur-md rounded-2xl p-6 shadow-xl border border-white/30 flex flex-col justify-center gap-4">
-               <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mb-1 px-2">Smart Controls</p>
-             
+            <div className="bg-white/10 backdrop-blur-2xl rounded-2xl p-6 shadow-[0_20px_60px_rgba(0,0,0,0.45)] border border-white/10 flex flex-col justify-center gap-4">
+               <p className="text-slate-200 text-xs font-bold uppercase tracking-widest mb-1 px-2">Smart Controls</p>
+
               {/* Licht Button */}
               <button
                  onClick={() => toggleShelly('light')}
                  disabled={switching === 'light'}
-                 className={`relative group w-full flex items-center justify-between p-4 rounded-2xl border bg-white/70 transition-all duration-300 overflow-hidden
+                 className={`relative group w-full flex items-center justify-between p-4 rounded-2xl border transition-all duration-300 overflow-hidden
                    ${shellyStatus.light
-                     ? 'border-yellow-400 bg-yellow-50/90'
-                     : 'border-white/40 hover:border-slate-200/60'}`}
+                     ? 'border-yellow-400/60 bg-gradient-to-r from-amber-400/20 to-yellow-400/10 shadow-[0_0_24px_rgba(250,204,21,0.35)]'
+                     : 'border-white/10 bg-white/5 hover:border-white/30 hover:bg-white/10'}`}
               >
-                 <div className={`absolute inset-0 bg-yellow-500/20 blur-xl transition-opacity duration-500 ${shellyStatus.light ? 'opacity-100' : 'opacity-0'}`}></div>
+                 <div className={`absolute inset-0 bg-yellow-500/15 blur-3xl transition-opacity duration-500 ${shellyStatus.light ? 'opacity-100' : 'opacity-0'}`}></div>
                  <div className="relative flex items-center gap-4">
-                     <div className={`p-3 rounded-xl transition-colors ${shellyStatus.light ? 'bg-yellow-500 text-amber-900' : 'bg-slate-100 text-slate-500'}`}>
+                     <div className={`p-3 rounded-xl transition-colors ${shellyStatus.light ? 'bg-gradient-to-br from-amber-400 to-yellow-500 text-amber-950 ring-1 ring-white/30' : 'bg-white/10 text-slate-200 border border-white/10'}`}>
                          <Lightbulb size={20} fill={shellyStatus.light ? "currentColor" : "none"} />
                      </div>
                      <div className="text-left">
-                         <span className={`block font-bold text-sm ${shellyStatus.light ? 'text-amber-900' : 'text-slate-700'}`}>Tageslicht</span>
-                         <span className="text-xs text-slate-500 font-medium uppercase tracking-wide">{shellyStatus.light ? 'An' : 'Aus'}</span>
+                         <span className={`block font-bold text-sm ${shellyStatus.light ? 'text-amber-100' : 'text-slate-100'}`}>Tageslicht</span>
+                         <span className="text-[11px] text-slate-300 font-semibold uppercase tracking-wide">{shellyStatus.light ? 'An' : 'Aus'}</span>
                      </div>
                  </div>
-                 {switching === 'light' && <RefreshCw size={16} className="animate-spin text-slate-500"/>}
+                 {switching === 'light' && <RefreshCw size={16} className="animate-spin text-slate-200"/>}
               </button>
 
               {/* Heizung Button */}
               <button
                  onClick={() => toggleShelly('heater')}
                  disabled={switching === 'heater'}
-                 className={`relative group w-full flex items-center justify-between p-4 rounded-2xl border bg-white/70 transition-all duration-300 ease-in-out overflow-hidden
+                 className={`relative group w-full flex items-center justify-between p-4 rounded-2xl border transition-all duration-300 ease-in-out overflow-hidden
                    ${shellyStatus.heater
-                     ? 'border-red-400 bg-red-50/90'
-                     : 'border-white/40 hover:border-slate-200/60'}`}
+                     ? 'border-red-400/60 bg-gradient-to-r from-orange-500/20 to-rose-500/10 shadow-[0_0_24px_rgba(248,113,113,0.35)]'
+                     : 'border-white/10 bg-white/5 hover:border-white/30 hover:bg-white/10'}`}
               >
-                 <div className={`absolute inset-0 bg-gradient-to-br from-orange-400/15 to-red-500/20 blur-xl transition-opacity duration-500 ${shellyStatus.heater ? 'opacity-100' : 'opacity-0'}`}></div>
+                 <div className={`absolute inset-0 bg-gradient-to-br from-orange-400/20 via-amber-500/10 to-red-500/20 blur-3xl transition-opacity duration-500 ${shellyStatus.heater ? 'opacity-100' : 'opacity-0'}`}></div>
                  <div className="relative flex items-center gap-4">
-                     <div className={`p-3 rounded-xl transition-all ${shellyStatus.heater ? 'bg-gradient-to-br from-orange-400 to-red-500 text-white shadow-md shadow-orange-200/60 animate-pulse' : 'bg-slate-100 text-slate-500'}`}>
+                     <div className={`p-3 rounded-xl transition-all ${shellyStatus.heater ? 'bg-gradient-to-br from-orange-500 via-amber-400 to-rose-500 text-white shadow-md shadow-orange-500/25 ring-1 ring-white/30 animate-pulse' : 'bg-white/10 text-slate-200 border border-white/10'}`}>
                          <Flame size={22} fill={shellyStatus.heater ? "currentColor" : "none"} />
                      </div>
                      <div className="text-left">
-                         <span className={`block font-bold text-sm ${shellyStatus.heater ? 'text-orange-900' : 'text-slate-700'}`}>Heizung</span>
-                         <span className="text-xs text-slate-500 font-medium uppercase tracking-wide">{shellyStatus.heater ? 'Aktiv' : 'Standby'}</span>
+                         <span className={`block font-bold text-sm ${shellyStatus.heater ? 'text-orange-50' : 'text-slate-100'}`}>Heizung</span>
+                         <span className="text-[11px] text-slate-300 font-semibold uppercase tracking-wide">{shellyStatus.heater ? 'Aktiv' : 'Standby'}</span>
                      </div>
                  </div>
-                 {switching === 'heater' && <RefreshCw size={16} className="animate-spin text-slate-500"/>}
+                 {switching === 'heater' && <RefreshCw size={16} className="animate-spin text-slate-200"/>}
               </button>
           </div>
 
         </div>
-
           {/* --- CHART SECTION --- */}
-          <div className="bg-white/85 backdrop-blur-md border border-white/30 rounded-2xl p-6 shadow-xl">
+          <div className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-2xl p-6 shadow-[0_20px_60px_rgba(0,0,0,0.45)]">
             <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-6">
               <div className="flex items-center gap-3">
-                 <Calendar size={20} className="text-emerald-500"/>
-                 <h3 className="font-bold text-lg text-slate-900">Klima-Verlauf</h3>
+                 <Calendar size={20} className="text-emerald-300"/>
+                 <h3 className="font-bold text-lg text-white">Klima-Verlauf</h3>
               </div>
-              <div className="flex bg-white/40 backdrop-blur-sm p-1 rounded-lg">
+              <div className="flex bg-white/5 backdrop-blur-sm p-1 rounded-lg border border-white/10 shadow-inner shadow-black/30">
                   <TimeRangeBtn r="24h" label="24 Std" />
                   <TimeRangeBtn r="7d" label="7 Tage" />
                   <TimeRangeBtn r="30d" label="30 Tage" />
@@ -268,14 +276,14 @@ export default function Home() {
                             <stop offset="95%" stopColor="#60a5fa" stopOpacity={0.8}/>
                         </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
-                    <XAxis dataKey="displayTime" tick={{fontSize: 12, fill: '#525252'}} axisLine={false} tickLine={false} minTickGap={40} />
-                    <YAxis yAxisId="left" domain={['auto', 'auto']} tick={{fontSize: 12, fill: '#525252'}} axisLine={false} tickLine={false} width={30} />
-                    <YAxis yAxisId="right" orientation="right" domain={[0, 100]} tick={{fontSize: 12, fill: '#525252'}} axisLine={false} tickLine={false} width={30} />
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.08)" />
+                    <XAxis dataKey="displayTime" tick={{fontSize: 12, fill: '#cbd5f5'}} axisLine={false} tickLine={false} minTickGap={40} />
+                    <YAxis yAxisId="left" domain={['auto', 'auto']} tick={{fontSize: 12, fill: '#cbd5f5'}} axisLine={false} tickLine={false} width={30} />
+                    <YAxis yAxisId="right" orientation="right" domain={[0, 100]} tick={{fontSize: 12, fill: '#cbd5f5'}} axisLine={false} tickLine={false} width={30} />
                     <Tooltip
-                        contentStyle={{backgroundColor: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', color: '#0f172a'}}
+                        contentStyle={{backgroundColor: 'rgba(15,23,42,0.92)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', color: '#e2e8f0'}}
                         itemStyle={{fontSize: '14px', fontWeight: 'bold'}}
-                        labelStyle={{color: '#64748b', marginBottom: '8px', fontSize: '12px'}}
+                        labelStyle={{color: '#cbd5f5', marginBottom: '8px', fontSize: '12px'}}
                     />
                     {timeRange === '24h' && (
                         <>
@@ -288,8 +296,8 @@ export default function Home() {
                   </LineChart>
                 </ResponsiveContainer>
             ) : (
-                <div className="h-full flex flex-col items-center justify-center text-slate-500">
-                    <Activity size={48} className="mb-4 opacity-20" />
+                <div className="h-full flex flex-col items-center justify-center text-slate-300">
+                    <Activity size={48} className="mb-4 opacity-40 text-emerald-300" />
                     <p className="text-sm">Warte auf Datenpunkte...</p>
                 </div>
             )}
