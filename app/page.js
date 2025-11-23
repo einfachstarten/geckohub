@@ -423,13 +423,23 @@ export default function Home() {
 
                     {/* Device Events als vertikale Linien */}
                     {chartEvents.map((event, idx) => {
-                      // Farbe basierend auf Device
                       const isLight = event.device === 'light';
-                      const color = isLight ? '#eab308' : '#f97316'; // Yellow für Light, Orange für Heater
-                      
-                      // Stil basierend auf Action
-                      const strokeDasharray = event.action === 'on' ? '0' : '4 4'; // Durchgezogen = ON, Gestrichelt = OFF
-                      
+                      const isOn = event.action === 'on';
+
+                      // Farben: Gelb für Light, Orange für Heater
+                      const color = isLight ? '#eab308' : '#f97316';
+
+                      // Stil: Durchgezogen für ON, Gestrichelt für OFF
+                      const strokeDasharray = isOn ? '0' : '4 4';
+
+                      // Label: L/H für Device, ↑/↓ für ON/OFF
+                      const deviceLabel = isLight ? 'L' : 'H';
+                      const actionLabel = isOn ? '↑' : '↓';
+                      const labelText = `${deviceLabel}${actionLabel}`;
+
+                      // Label Position: ON oben, OFF unten (weniger Overlap)
+                      const labelPosition = isOn ? 'top' : 'bottom';
+
                       return (
                         <ReferenceLine
                           key={`event-${idx}-${event.timestamp}`}
@@ -438,12 +448,18 @@ export default function Home() {
                           stroke={color}
                           strokeWidth={2}
                           strokeDasharray={strokeDasharray}
-                          strokeOpacity={0.5}
+                          strokeOpacity={0.6}
                           label={{
-                            value: isLight ? '💡' : '🔥',
-                            position: 'top',
-                            fontSize: 14,
-                            opacity: 0.7
+                            value: labelText,
+                            position: labelPosition,
+                            fontSize: 11,
+                            fontWeight: 'bold',
+                            fill: color,
+                            opacity: 0.9,
+                            offset: 8,
+                            style: {
+                              textShadow: '0 0 3px rgba(0,0,0,0.8)'
+                            }
                           }}
                         />
                       );
@@ -458,6 +474,54 @@ export default function Home() {
                     <Activity size={48} className="mb-2 opacity-20" />
                     <p className="text-slate-500">Sammle Daten... (Warte auf ersten Cron-Job)</p>
                     <p className="text-xs mt-2 opacity-60 text-slate-600">Tipp: Rufe /api/cron einmal manuell auf</p>
+                </div>
+              )}
+              
+              {/* NEU: Event Legend */}
+              {chartEvents.length > 0 && (
+                <div className="mt-4 pt-4 border-t border-slate-700/30">
+                  <div className="flex flex-wrap items-center gap-4 text-xs">
+                    <span className="text-slate-500 font-bold uppercase tracking-wider">Events:</span>
+                    
+                    {/* Light Legend */}
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1">
+                        <div className="w-8 h-0.5 bg-yellow-500/60" />
+                        <span className="text-yellow-500 font-bold">L↑</span>
+                      </div>
+                      <span className="text-slate-400">Licht AN</span>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1">
+                        <div className="w-8 h-0.5 bg-yellow-500/60 border-t-2 border-dashed border-yellow-500/60" />
+                        <span className="text-yellow-500 font-bold">L↓</span>
+                      </div>
+                      <span className="text-slate-400">Licht AUS</span>
+                    </div>
+                    
+                    {/* Heater Legend */}
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1">
+                        <div className="w-8 h-0.5 bg-orange-500/60" />
+                        <span className="text-orange-500 font-bold">H↑</span>
+                      </div>
+                      <span className="text-slate-400">Heizung AN</span>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1">
+                        <div className="w-8 h-0.5 bg-orange-500/60 border-t-2 border-dashed border-orange-500/60" />
+                        <span className="text-orange-500 font-bold">H↓</span>
+                      </div>
+                      <span className="text-slate-400">Heizung AUS</span>
+                    </div>
+                    
+                    {/* Event Count */}
+                    <span className="text-slate-600 ml-auto">
+                      {chartEvents.length} {chartEvents.length === 1 ? 'Event' : 'Events'}
+                    </span>
+                  </div>
                 </div>
               )}
             </div>
