@@ -5,7 +5,7 @@ import Image from 'next/image';
 import LoginScreen from '@/components/LoginScreen';
 import toast from 'react-hot-toast';
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceArea
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine
 } from 'recharts';
 import {
   Thermometer, Droplets, Lightbulb, Flame, Activity, RefreshCw, Lock,
@@ -167,117 +167,34 @@ export default function Home() {
     </button>
   );
 
-  // Helper: Berechne "Nacht"-Perioden (Licht AUS) aus Events
-  const calculateNightPeriods = useCallback(() => {
+  // NEU: Einfacher Event-Mapper (keine komplexe Period-Logic)
+  const getChartEvents = useCallback(() => {
     if (!historyData.length || !deviceEvents.length) return [];
 
-    // Filter nur Licht-Events
-    const lightEvents = deviceEvents
-      .filter(e => e.device === 'light')
-      .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+    // Zeitbereich aus historyData (funktioniert mit ASC und DESC)
+    const timestamps = historyData.map(d => new Date(d.time).getTime());
+    const chartStart = Math.min(...timestamps);
+    const chartEnd = Math.max(...timestamps);
 
-    if (lightEvents.length === 0) return [];
-
-    // historyData ist DESC sortiert (neueste zuerst)
-    const chartStart = new Date(historyData[historyData.length - 1].time);
-    const chartEnd = new Date(historyData[0].time);
-
-    const periods = [];
-    let currentState = lightEvents[0].action; // 'on' oder 'off'
-    let periodStart = chartStart;
-
-    lightEvents.forEach((event) => {
-      const eventTime = new Date(event.timestamp);
-      
-      if (eventTime < chartStart) {
-        // Event ist vor Chart-Bereich → State übernehmen
-        currentState = event.action;
-        return;
-      }
-
-      if (eventTime > chartEnd) return; // Event nach Chart → ignorieren
-
-      // Wenn Licht ausgeht → Nacht-Periode beginnt
-      if (event.action === 'off' && currentState === 'on') {
-        periodStart = eventTime;
-      }
-      
-      // Wenn Licht angeht → Nacht-Periode endet
-      if (event.action === 'on' && currentState === 'off') {
-        periods.push({
-          start: periodStart.getTime(),
-          end: eventTime.getTime()
-        });
-      }
-
-      currentState = event.action;
-    });
-
-    // Falls Chart mit "Licht AUS" endet
-    if (currentState === 'off') {
-      periods.push({
-        start: periodStart.getTime(),
-        end: chartEnd.getTime()
-      });
-    }
-
-    return periods;
+    // Filtere Events im Chart-Zeitbereich
+    return deviceEvents
+      .filter(event => {
+        const eventTime = new Date(event.timestamp).getTime();
+        return eventTime >= chartStart && eventTime <= chartEnd;
+      })
+      .map(event => ({
+        timestamp: new Date(event.timestamp).getTime(),
+        displayTime: new Date(event.timestamp).toLocaleTimeString([], {
+          hour: '2-digit',
+          minute: '2-digit'
+        }),
+        device: event.device,
+        action: event.action,
+        source: event.source
+      }));
   }, [historyData, deviceEvents]);
 
-  // Helper: Berechne Heizungs-Events für Indikator-Linie
-  const calculateHeaterPeriods = useCallback(() => {
-    if (!historyData.length || !deviceEvents.length) return [];
-
-    const heaterEvents = deviceEvents
-      .filter(e => e.device === 'heater')
-      .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-
-    if (heaterEvents.length === 0) return [];
-
-    // historyData ist DESC sortiert (neueste zuerst)
-    const chartStart = new Date(historyData[historyData.length - 1].time);
-    const chartEnd = new Date(historyData[0].time);
-
-    const periods = [];
-    let currentState = heaterEvents[0].action;
-    let periodStart = chartStart;
-
-    heaterEvents.forEach((event) => {
-      const eventTime = new Date(event.timestamp);
-      
-      if (eventTime < chartStart) {
-        currentState = event.action;
-        return;
-      }
-
-      if (eventTime > chartEnd) return;
-
-      if (event.action === 'off' && currentState === 'on') {
-        periods.push({
-          start: periodStart.getTime(),
-          end: eventTime.getTime()
-        });
-      }
-      
-      if (event.action === 'on' && currentState === 'off') {
-        periodStart = eventTime;
-      }
-
-      currentState = event.action;
-    });
-
-    if (currentState === 'on') {
-      periods.push({
-        start: periodStart.getTime(),
-        end: chartEnd.getTime()
-      });
-    }
-
-    return periods;
-  }, [historyData, deviceEvents]);
-
-  const nightPeriods = calculateNightPeriods();
-  const heaterPeriods = calculateHeaterPeriods();
+  const chartEvents = getChartEvents();
 
   if (!authChecked) {
     return (
@@ -503,60 +420,31 @@ export default function Home() {
                         contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px -2px rgb(0 0 0 / 0.1)'}}
                         labelStyle={{color: '#94a3b8', fontSize: '12px', marginBottom: '4px'}}
                     />
-                    
-                    {/* Nacht-Perioden (Licht AUS) */}
-                    {nightPeriods.map((period, idx) => {
-                      // Finde Data Indizes für Start/End
-                      const startIdx = historyData.findIndex(d => new Date(d.time).getTime() >= period.start);
-                      const endIdx = historyData.findIndex(d => new Date(d.time).getTime() >= period.end);
-                      
-                      if (startIdx === -1) return null;
-                      
-                      const x1 = historyData[startIdx]?.displayTime;
-                      const x2 = endIdx === -1 
-                        ? historyData[historyData.length - 1]?.displayTime 
-                        : historyData[endIdx]?.displayTime;
 
+                    {/* Device Events als vertikale Linien */}
+                    {chartEvents.map((event, idx) => {
+                      // Farbe basierend auf Device
+                      const isLight = event.device === 'light';
+                      const color = isLight ? '#eab308' : '#f97316'; // Yellow für Light, Orange für Heater
+                      
+                      // Stil basierend auf Action
+                      const strokeDasharray = event.action === 'on' ? '0' : '4 4'; // Durchgezogen = ON, Gestrichelt = OFF
+                      
                       return (
-                        <ReferenceArea 
-                          key={`night-${idx}`}
-                          x1={x1} 
-                          x2={x2} 
-                          yAxisId="left" 
-                          fill="#1e293b" 
-                          fillOpacity={0.08}
-                          strokeOpacity={0}
-                        />
-                      );
-                    })}
-
-                    {/* Heizungs-Perioden (am unteren Rand) */}
-                    {heaterPeriods.map((period, idx) => {
-                      const startIdx = historyData.findIndex(d => new Date(d.time).getTime() >= period.start);
-                      const endIdx = historyData.findIndex(d => new Date(d.time).getTime() >= period.end);
-                      
-                      if (startIdx === -1) return null;
-                      
-                      const x1 = historyData[startIdx]?.displayTime;
-                      const x2 = endIdx === -1 
-                        ? historyData[historyData.length - 1]?.displayTime 
-                        : historyData[endIdx]?.displayTime;
-
-                      // Y-Bereich: Am unteren Chart-Rand
-                      const yMin = Math.min(...historyData.map(d => parseFloat(d.temp) || 0));
-                      const yMax = yMin + 1; // 1°C hoher Streifen
-
-                      return (
-                        <ReferenceArea 
-                          key={`heater-${idx}`}
-                          x1={x1} 
-                          x2={x2} 
-                          y1={yMin}
-                          y2={yMax}
-                          yAxisId="left" 
-                          fill="#f97316" 
-                          fillOpacity={0.6}
-                          strokeOpacity={0}
+                        <ReferenceLine
+                          key={`event-${idx}-${event.timestamp}`}
+                          x={event.displayTime}
+                          yAxisId="left"
+                          stroke={color}
+                          strokeWidth={2}
+                          strokeDasharray={strokeDasharray}
+                          strokeOpacity={0.5}
+                          label={{
+                            value: isLight ? '💡' : '🔥',
+                            position: 'top',
+                            fontSize: 14,
+                            opacity: 0.7
+                          }}
                         />
                       );
                     })}
