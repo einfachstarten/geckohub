@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import Image from 'next/image';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceArea 
 } from 'recharts';
@@ -95,147 +96,161 @@ export default function Home() {
   // --- UI COMPONENTS ---
   
   const TimeRangeBtn = ({ r, label }) => (
-    <button 
+    <button
       onClick={() => setTimeRange(r)}
-      className={`px-4 py-1 text-xs font-bold rounded-full transition-all ${
-        timeRange === r 
-          ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' 
-          : 'bg-neutral-800 text-neutral-400 hover:bg-neutral-700'
+      className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${
+        timeRange === r
+          ? 'bg-emerald-100/90 text-emerald-700'
+          : 'text-slate-500 hover:text-slate-700 hover:bg-white/40'
       }`}
     >
       {label}
     </button>
   );
 
-  return (
-    <div className="min-h-screen bg-neutral-950 text-white font-sans selection:bg-emerald-500/30">
-      
-      {/* Header */}
-      <header className="border-b border-neutral-900 sticky top-0 z-20 bg-neutral-950/80 backdrop-blur-md">
-        <div className="max-w-6xl mx-auto px-6 h-20 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-900/20">
-              <Activity size={22} className="text-white" />
-            </div>
-            <div>
-              <h1 className="font-bold text-xl tracking-tight">Jungle<span className="text-emerald-500">Glass</span></h1>
-              <p className="text-xs text-neutral-500 font-medium tracking-wider uppercase">Sir Flitzalot HQ</p>
-            </div>
-          </div>
-          <button 
-            onClick={() => { fetchLive(); fetchHistory(); }} 
-            className={`p-3 rounded-full bg-neutral-900 border border-neutral-800 hover:border-emerald-500/50 hover:text-emerald-400 transition-all ${loading ? 'animate-spin text-emerald-500' : 'text-neutral-400'}`}
-          >
-            <RefreshCw size={18} />
-          </button>
+    return (
+      <>
+        {/* Background Layer */}
+        <div className="fixed inset-0 -z-10">
+          <Image
+            src="/images/background.jpg"
+            alt=""
+            fill
+            className="object-cover opacity-25"
+            priority
+            quality={90}
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-slate-900/30 via-transparent to-slate-900/20" />
         </div>
-      </header>
 
-      <main className="max-w-6xl mx-auto px-6 py-10 space-y-8">
+        <div className="min-h-screen bg-transparent text-slate-800 font-sans pb-10 selection:bg-emerald-500/30">
+
+          {/* Header */}
+          <header className="bg-white/80 backdrop-blur-xl border-b border-white/20 sticky top-0 z-20 shadow-lg">
+            <div className="max-w-6xl mx-auto px-6 h-20 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-900/20">
+                  <Activity size={22} className="text-white" />
+                </div>
+                <div>
+                  <h1 className="font-bold text-xl tracking-tight text-slate-900">Jungle<span className="text-emerald-500">Glass</span></h1>
+                  <p className="text-xs text-slate-500 font-medium tracking-wider uppercase">Sir Flitzalot HQ</p>
+                </div>
+              </div>
+              <button
+                onClick={() => { fetchLive(); fetchHistory(); }}
+                className={`p-2 bg-white/60 backdrop-blur-sm rounded-full hover:bg-white/80 transition-all ${loading ? 'animate-spin text-emerald-500' : 'text-slate-500'}`}
+              >
+                <RefreshCw size={18} />
+              </button>
+            </div>
+          </header>
+
+          <main className="max-w-6xl mx-auto px-6 py-10 space-y-8">
         
-        {/* --- CARDS --- */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          
-          {/* Temperatur Card */}
-          <div className="relative bg-neutral-900/50 border border-white/5 rounded-3xl p-8 overflow-hidden group hover:border-white/10 transition-all duration-500">
-             <div className="absolute -right-6 -top-6 w-32 h-32 bg-red-500/10 rounded-full blur-2xl group-hover:bg-red-500/20 transition-all"></div>
-             <div className="relative z-10">
-                <div className="flex justify-between items-start mb-2">
-                   <p className="text-neutral-400 text-xs font-bold uppercase tracking-widest">Temperatur</p>
-                   <Thermometer size={24} className="text-neutral-500 group-hover:text-red-400 transition-colors"/>
-                </div>
-                <div className="flex items-baseline gap-2">
-                   <span className="text-6xl font-bold text-white tracking-tighter">{currentData.temp}</span>
-                   <span className="text-2xl text-neutral-500 font-light">°C</span>
-                </div>
-                <div className="mt-6 flex items-center gap-2">
-                   <div className={`w-2 h-2 rounded-full ${currentData.temp > 0 ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]' : 'bg-neutral-700'}`}></div>
-                   <span className="text-xs font-medium text-emerald-500">Live Sensor</span>
-                </div>
-             </div>
-          </div>
+          {/* --- CARDS --- */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-          {/* Humidity Card */}
-          <div className="relative bg-neutral-900/50 border border-white/5 rounded-3xl p-8 overflow-hidden group hover:border-white/10 transition-all duration-500">
-             <div className="absolute -right-6 -top-6 w-32 h-32 bg-blue-500/10 rounded-full blur-2xl group-hover:bg-blue-500/20 transition-all"></div>
-             <div className="relative z-10">
-                <div className="flex justify-between items-start mb-2">
-                   <p className="text-neutral-400 text-xs font-bold uppercase tracking-widest">Feuchtigkeit</p>
-                   <Droplets size={24} className="text-neutral-500 group-hover:text-blue-400 transition-colors"/>
-                </div>
-                <div className="flex items-baseline gap-2">
-                   <span className="text-6xl font-bold text-white tracking-tighter">{currentData.hum}</span>
-                   <span className="text-2xl text-neutral-500 font-light">%</span>
-                </div>
-                <div className="mt-6 flex items-center gap-2">
-                   <div className={`w-2 h-2 rounded-full ${currentData.hum > 0 ? 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.6)]' : 'bg-neutral-700'}`}></div>
-                   <span className="text-xs font-medium text-blue-500">Live Sensor</span>
-                </div>
-             </div>
-          </div>
+            {/* Temperatur Card */}
+            <div className="relative bg-white/85 backdrop-blur-md rounded-2xl p-6 shadow-xl border border-white/30 overflow-hidden group transition-all duration-500">
+               <div className="absolute -right-6 -top-6 w-32 h-32 bg-red-500/10 rounded-full blur-2xl group-hover:bg-red-500/20 transition-all"></div>
+               <div className="relative z-10">
+                  <div className="flex justify-between items-start mb-2">
+                     <p className="text-slate-500 text-xs font-bold uppercase tracking-widest">Temperatur</p>
+                     <Thermometer size={24} className="text-slate-400 group-hover:text-red-400 transition-colors"/>
+                  </div>
+                  <div className="flex items-baseline gap-2">
+                     <span className="text-6xl font-bold text-slate-900 tracking-tighter">{currentData.temp}</span>
+                     <span className="text-2xl text-slate-500 font-light">°C</span>
+                  </div>
+                  <div className="mt-6 flex items-center gap-2">
+                     <div className={`w-2 h-2 rounded-full ${currentData.temp > 0 ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]' : 'bg-slate-300'}`}></div>
+                     <span className="text-xs font-medium text-emerald-600">Live Sensor</span>
+                  </div>
+               </div>
+            </div>
 
-          {/* Control Panel */}
-          <div className="bg-neutral-900/50 border border-white/5 rounded-3xl p-6 flex flex-col justify-center gap-4">
-             <p className="text-neutral-500 text-xs font-bold uppercase tracking-widest mb-1 px-2">Smart Controls</p>
+            {/* Humidity Card */}
+            <div className="relative bg-white/85 backdrop-blur-md rounded-2xl p-6 shadow-xl border border-white/30 overflow-hidden group transition-all duration-500">
+               <div className="absolute -right-6 -top-6 w-32 h-32 bg-blue-500/10 rounded-full blur-2xl group-hover:bg-blue-500/20 transition-all"></div>
+               <div className="relative z-10">
+                  <div className="flex justify-between items-start mb-2">
+                     <p className="text-slate-500 text-xs font-bold uppercase tracking-widest">Feuchtigkeit</p>
+                     <Droplets size={24} className="text-slate-400 group-hover:text-blue-400 transition-colors"/>
+                  </div>
+                  <div className="flex items-baseline gap-2">
+                     <span className="text-6xl font-bold text-slate-900 tracking-tighter">{currentData.hum}</span>
+                     <span className="text-2xl text-slate-500 font-light">%</span>
+                  </div>
+                  <div className="mt-6 flex items-center gap-2">
+                     <div className={`w-2 h-2 rounded-full ${currentData.hum > 0 ? 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.6)]' : 'bg-slate-300'}`}></div>
+                     <span className="text-xs font-medium text-blue-600">Live Sensor</span>
+                  </div>
+               </div>
+            </div>
+
+            {/* Control Panel */}
+            <div className="bg-white/85 backdrop-blur-md rounded-2xl p-6 shadow-xl border border-white/30 flex flex-col justify-center gap-4">
+               <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mb-1 px-2">Smart Controls</p>
              
-             {/* Licht Button */}
-             <button 
-                onClick={() => toggleShelly('light')}
-                disabled={switching === 'light'}
-                className={`relative group w-full flex items-center justify-between p-4 rounded-2xl border transition-all duration-300 overflow-hidden
-                  ${shellyStatus.light 
-                    ? 'bg-yellow-500/10 border-yellow-500/50 hover:bg-yellow-500/20' 
-                    : 'bg-neutral-800/40 border-white/5 hover:bg-neutral-800/60'}`}
-             >
-                <div className={`absolute inset-0 bg-yellow-500/20 blur-xl transition-opacity duration-500 ${shellyStatus.light ? 'opacity-100' : 'opacity-0'}`}></div>
-                <div className="relative flex items-center gap-4">
-                    <div className={`p-3 rounded-xl transition-colors ${shellyStatus.light ? 'bg-yellow-500 text-black' : 'bg-neutral-800 text-neutral-400'}`}>
-                        <Lightbulb size={20} fill={shellyStatus.light ? "currentColor" : "none"} />
-                    </div>
-                    <div className="text-left">
-                        <span className={`block font-bold text-sm ${shellyStatus.light ? 'text-yellow-100' : 'text-neutral-300'}`}>Tageslicht</span>
-                        <span className="text-xs text-neutral-500 font-medium uppercase tracking-wide">{shellyStatus.light ? 'An' : 'Aus'}</span>
-                    </div>
-                </div>
-                {switching === 'light' && <RefreshCw size={16} className="animate-spin text-neutral-500"/>}
-             </button>
+              {/* Licht Button */}
+              <button
+                 onClick={() => toggleShelly('light')}
+                 disabled={switching === 'light'}
+                 className={`relative group w-full flex items-center justify-between p-4 rounded-2xl border bg-white/70 transition-all duration-300 overflow-hidden
+                   ${shellyStatus.light
+                     ? 'border-yellow-400 bg-yellow-50/90'
+                     : 'border-white/40 hover:border-slate-200/60'}`}
+              >
+                 <div className={`absolute inset-0 bg-yellow-500/20 blur-xl transition-opacity duration-500 ${shellyStatus.light ? 'opacity-100' : 'opacity-0'}`}></div>
+                 <div className="relative flex items-center gap-4">
+                     <div className={`p-3 rounded-xl transition-colors ${shellyStatus.light ? 'bg-yellow-500 text-amber-900' : 'bg-slate-100 text-slate-500'}`}>
+                         <Lightbulb size={20} fill={shellyStatus.light ? "currentColor" : "none"} />
+                     </div>
+                     <div className="text-left">
+                         <span className={`block font-bold text-sm ${shellyStatus.light ? 'text-amber-900' : 'text-slate-700'}`}>Tageslicht</span>
+                         <span className="text-xs text-slate-500 font-medium uppercase tracking-wide">{shellyStatus.light ? 'An' : 'Aus'}</span>
+                     </div>
+                 </div>
+                 {switching === 'light' && <RefreshCw size={16} className="animate-spin text-slate-500"/>}
+              </button>
 
-             {/* Heizung Button */}
-             <button
-                onClick={() => toggleShelly('heater')}
-                disabled={switching === 'heater'}
-                className={`relative group w-full flex items-center justify-between p-4 rounded-2xl border transition-all duration-300 ease-in-out overflow-hidden
-                  ${shellyStatus.heater
-                    ? 'bg-gradient-to-br from-orange-50 to-red-50 border-orange-500/70 hover:border-orange-300 hover:bg-orange-50/60 shadow-lg shadow-orange-200/50 ring-2 ring-orange-400/20'
-                    : 'bg-neutral-800/40 border-white/5 hover:bg-neutral-800/60 hover:border-orange-300/40'}`}
-             >
-                <div className={`absolute inset-0 bg-gradient-to-br from-orange-400/15 to-red-500/20 blur-xl transition-opacity duration-500 ${shellyStatus.heater ? 'opacity-100' : 'opacity-0'}`}></div>
-                <div className="relative flex items-center gap-4">
-                    <div className={`p-3 rounded-xl transition-all ${shellyStatus.heater ? 'bg-gradient-to-br from-orange-400 to-red-500 text-white shadow-md shadow-orange-200/60 animate-pulse' : 'bg-slate-200 text-neutral-500'}`}>
-                        <Flame size={22} fill={shellyStatus.heater ? "currentColor" : "none"} />
-                    </div>
-                    <div className="text-left">
-                        <span className={`block font-bold text-sm ${shellyStatus.heater ? 'text-orange-900' : 'text-neutral-300'}`}>Heizung</span>
-                        <span className="text-xs text-neutral-500 font-medium uppercase tracking-wide">{shellyStatus.heater ? 'Aktiv' : 'Standby'}</span>
-                    </div>
-                </div>
-                {switching === 'heater' && <RefreshCw size={16} className="animate-spin text-neutral-500"/>}
-             </button>
+              {/* Heizung Button */}
+              <button
+                 onClick={() => toggleShelly('heater')}
+                 disabled={switching === 'heater'}
+                 className={`relative group w-full flex items-center justify-between p-4 rounded-2xl border bg-white/70 transition-all duration-300 ease-in-out overflow-hidden
+                   ${shellyStatus.heater
+                     ? 'border-red-400 bg-red-50/90'
+                     : 'border-white/40 hover:border-slate-200/60'}`}
+              >
+                 <div className={`absolute inset-0 bg-gradient-to-br from-orange-400/15 to-red-500/20 blur-xl transition-opacity duration-500 ${shellyStatus.heater ? 'opacity-100' : 'opacity-0'}`}></div>
+                 <div className="relative flex items-center gap-4">
+                     <div className={`p-3 rounded-xl transition-all ${shellyStatus.heater ? 'bg-gradient-to-br from-orange-400 to-red-500 text-white shadow-md shadow-orange-200/60 animate-pulse' : 'bg-slate-100 text-slate-500'}`}>
+                         <Flame size={22} fill={shellyStatus.heater ? "currentColor" : "none"} />
+                     </div>
+                     <div className="text-left">
+                         <span className={`block font-bold text-sm ${shellyStatus.heater ? 'text-orange-900' : 'text-slate-700'}`}>Heizung</span>
+                         <span className="text-xs text-slate-500 font-medium uppercase tracking-wide">{shellyStatus.heater ? 'Aktiv' : 'Standby'}</span>
+                     </div>
+                 </div>
+                 {switching === 'heater' && <RefreshCw size={16} className="animate-spin text-slate-500"/>}
+              </button>
           </div>
 
         </div>
 
-        {/* --- CHART SECTION --- */}
-        <div className="bg-neutral-900/50 border border-white/5 rounded-3xl p-8 shadow-xl">
-          <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-6">
-            <div className="flex items-center gap-3">
-               <Calendar size={20} className="text-emerald-500"/>
-               <h3 className="font-bold text-lg text-white">Klima-Verlauf</h3>
-            </div>
-            <div className="flex bg-neutral-900 p-1.5 rounded-full border border-white/5">
-                <TimeRangeBtn r="24h" label="24 Std" />
-                <TimeRangeBtn r="7d" label="7 Tage" />
-                <TimeRangeBtn r="30d" label="30 Tage" />
+          {/* --- CHART SECTION --- */}
+          <div className="bg-white/85 backdrop-blur-md border border-white/30 rounded-2xl p-6 shadow-xl">
+            <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-6">
+              <div className="flex items-center gap-3">
+                 <Calendar size={20} className="text-emerald-500"/>
+                 <h3 className="font-bold text-lg text-slate-900">Klima-Verlauf</h3>
+              </div>
+              <div className="flex bg-white/40 backdrop-blur-sm p-1 rounded-lg">
+                  <TimeRangeBtn r="24h" label="24 Std" />
+                  <TimeRangeBtn r="7d" label="7 Tage" />
+                  <TimeRangeBtn r="30d" label="30 Tage" />
             </div>
           </div>
           
@@ -253,19 +268,19 @@ export default function Home() {
                             <stop offset="95%" stopColor="#60a5fa" stopOpacity={0.8}/>
                         </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#262626" />
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
                     <XAxis dataKey="displayTime" tick={{fontSize: 12, fill: '#525252'}} axisLine={false} tickLine={false} minTickGap={40} />
                     <YAxis yAxisId="left" domain={['auto', 'auto']} tick={{fontSize: 12, fill: '#525252'}} axisLine={false} tickLine={false} width={30} />
                     <YAxis yAxisId="right" orientation="right" domain={[0, 100]} tick={{fontSize: 12, fill: '#525252'}} axisLine={false} tickLine={false} width={30} />
-                    <Tooltip 
-                        contentStyle={{backgroundColor: '#171717', borderRadius: '12px', border: '1px solid #262626', color: '#fff'}}
+                    <Tooltip
+                        contentStyle={{backgroundColor: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', color: '#0f172a'}}
                         itemStyle={{fontSize: '14px', fontWeight: 'bold'}}
-                        labelStyle={{color: '#737373', marginBottom: '8px', fontSize: '12px'}}
+                        labelStyle={{color: '#64748b', marginBottom: '8px', fontSize: '12px'}}
                     />
                     {timeRange === '24h' && (
                         <>
-                           <ReferenceArea x1={0} x2={8} yAxisId="left" fill="#1e1b4b" fillOpacity={0.3} /> 
-                           <ReferenceArea x1={20} x2={24} yAxisId="left" fill="#1e1b4b" fillOpacity={0.3} /> 
+                           <ReferenceArea x1={0} x2={8} yAxisId="left" fill="#1e1b4b" fillOpacity={0.08} />
+                           <ReferenceArea x1={20} x2={24} yAxisId="left" fill="#1e1b4b" fillOpacity={0.08} />
                         </>
                     )}
                     <Line yAxisId="left" type="monotone" dataKey="temp" stroke="url(#colorTemp)" strokeWidth={4} dot={false} activeDot={{r: 6, fill: '#ef4444'}} name="Temp" unit="°C" />
@@ -273,7 +288,7 @@ export default function Home() {
                   </LineChart>
                 </ResponsiveContainer>
             ) : (
-                <div className="h-full flex flex-col items-center justify-center text-neutral-600">
+                <div className="h-full flex flex-col items-center justify-center text-slate-500">
                     <Activity size={48} className="mb-4 opacity-20" />
                     <p className="text-sm">Warte auf Datenpunkte...</p>
                 </div>
@@ -281,7 +296,8 @@ export default function Home() {
           </div>
         </div>
 
-      </main>
-    </div>
-  );
+          </main>
+        </div>
+      </>
+    );
 }
