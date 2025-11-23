@@ -2,11 +2,13 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
-import { 
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceArea 
+import LoginScreen from '@/components/LoginScreen';
+import toast from 'react-hot-toast';
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceArea
 } from 'recharts';
-import { 
-  Thermometer, Droplets, Lightbulb, Flame, Activity, RefreshCw, 
+import {
+  Thermometer, Droplets, Lightbulb, Flame, Activity, RefreshCw, Lock,
   Calendar, Zap
 } from 'lucide-react';
 
@@ -15,11 +17,13 @@ export default function Home() {
   const [currentData, setCurrentData] = useState({ temp: '--', hum: '--' });
   const [shellyStatus, setShellyStatus] = useState({ light: false, heater: false });
   const [historyData, setHistoryData] = useState([]);
-  
+
   // UI States
   const [timeRange, setTimeRange] = useState('24h');
   const [loading, setLoading] = useState(true);
   const [switching, setSwitching] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
 
   // --- LOGIC ---
   
@@ -60,16 +64,29 @@ export default function Home() {
     }).catch(() => {});
   }, []);
 
+  // Check Authentication beim Mount
+  useEffect(() => {
+    const localAuth = localStorage.getItem('flitzhq_auth');
+    const sessionAuth = sessionStorage.getItem('flitzhq_auth');
+
+    if (localAuth === 'true' || sessionAuth === 'true') {
+      setIsAuthenticated(true);
+    }
+
+    setAuthChecked(true);
+  }, []);
+
   // Init & Loop
   useEffect(() => {
+    if (!isAuthenticated) return;
     setLoading(true);
     Promise.all([fetchLive(), fetchHistory()]).finally(() => setLoading(false));
     const interval = setInterval(() => { fetchLive(); fetchHistory(); }, 60000);
     return () => clearInterval(interval);
-  }, [fetchLive, fetchHistory]);
-  
+  }, [fetchLive, fetchHistory, isAuthenticated]);
+
   // Range Switch
-  useEffect(() => { fetchHistory(); }, [timeRange, fetchHistory]);
+  useEffect(() => { if (isAuthenticated) fetchHistory(); }, [timeRange, fetchHistory, isAuthenticated]);
 
   const toggleShelly = async (target) => {
     setSwitching(target);
@@ -108,35 +125,65 @@ export default function Home() {
     </button>
   );
 
+  if (!authChecked) {
     return (
-      <>
-        {/* Background Layer */}
-        <div className="fixed inset-0 -z-10">
-          <Image
-            src="/images/background.jpg"
-            alt=""
-            fill
-            className="object-cover opacity-15"
-            priority
-            quality={90}
-          />
-          <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-slate-900/80 to-slate-950" />
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-16 h-16 bg-emerald-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-emerald-500/30 animate-pulse">
+            <Activity size={32} />
+          </div>
+          <p className="text-slate-500 text-sm">Lade FlitzHQ...</p>
         </div>
+      </div>
+    );
+  }
 
-        <div className="min-h-screen bg-slate-950 text-slate-100 font-sans pb-10 selection:bg-emerald-400/30">
+  if (!isAuthenticated) {
+    return <LoginScreen onLoginSuccess={() => setIsAuthenticated(true)} />;
+  }
 
-          {/* Header */}
-            <header className="bg-slate-900/90 backdrop-blur-xl border-b border-slate-700/50 sticky top-0 z-20 shadow-2xl shadow-black/20">
-              <div className="max-w-6xl mx-auto px-6 h-20 flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 via-teal-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-800/40 ring-1 ring-white/20">
-                    <Activity size={22} className="text-white" />
-                  </div>
-                  <div>
-                    <h1 className="font-bold text-xl tracking-tight text-slate-100">Flitz<span className="text-emerald-400">HQ</span></h1>
-                    <p className="text-[11px] text-slate-500 font-semibold tracking-[0.25em] uppercase">Sir Flitzalot Automation</p>
-                  </div>
+  return (
+    <>
+      {/* Background Layer */}
+      <div className="fixed inset-0 -z-10">
+        <Image
+          src="/images/background.jpg"
+          alt=""
+          fill
+          className="object-cover opacity-15"
+          priority
+          quality={90}
+        />
+        <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-slate-900/80 to-slate-950" />
+      </div>
+
+      <div className="min-h-screen bg-slate-950 text-slate-100 font-sans pb-10 selection:bg-emerald-400/30">
+
+        {/* Header */}
+          <header className="bg-slate-900/90 backdrop-blur-xl border-b border-slate-700/50 sticky top-0 z-20 shadow-2xl shadow-black/20">
+            <div className="max-w-6xl mx-auto px-6 h-20 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 via-teal-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-800/40 ring-1 ring-white/20">
+                  <Activity size={22} className="text-white" />
                 </div>
+                <div>
+                  <h1 className="font-bold text-xl tracking-tight text-slate-100">Flitz<span className="text-emerald-400">HQ</span></h1>
+                  <p className="text-[11px] text-slate-500 font-semibold tracking-[0.25em] uppercase">Sir Flitzalot Automation</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    localStorage.removeItem('flitzhq_auth');
+                    sessionStorage.removeItem('flitzhq_auth');
+                    setIsAuthenticated(false);
+                    toast('Abgemeldet', { icon: '👋' });
+                  }}
+                  className="p-2 bg-slate-800/60 backdrop-blur-sm rounded-full hover:bg-slate-700/80 text-slate-400 hover:text-slate-300 transition-colors"
+                  title="Abmelden"
+                >
+                  <Lock size={18} />
+                </button>
                 <button
                   onClick={() => { fetchLive(); fetchHistory(); }}
                   className={`p-2 bg-slate-800/60 backdrop-blur-sm rounded-full border border-slate-700/50 hover:border-slate-600 hover:bg-slate-700/80 transition-all text-slate-300 hover:text-slate-100 ${loading ? 'animate-spin text-emerald-400' : ''}`}
@@ -144,12 +191,13 @@ export default function Home() {
                   <RefreshCw size={18} />
                 </button>
               </div>
-            </header>
+            </div>
+          </header>
 
-          <main className="max-w-6xl mx-auto px-6 py-10 space-y-8">
-        
-          {/* --- CARDS --- */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <main className="max-w-6xl mx-auto px-6 py-10 space-y-8">
+
+        {/* --- CARDS --- */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
             {/* Temperatur Card */}
               <div className="relative bg-slate-900/70 backdrop-blur-md rounded-2xl p-6 shadow-2xl shadow-black/20 border border-slate-700/30 overflow-hidden group transition-all duration-500">
