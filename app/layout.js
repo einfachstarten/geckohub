@@ -37,7 +37,7 @@ export const metadata = {
       { url: "/icons/android-launchericon-512-512.png", sizes: "512x512", type: "image/png" }
     ],
     apple: [
-      { url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }
+      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }
     ]
   }
 };
@@ -52,7 +52,8 @@ export default function RootLayout({ children }) {
         />
         <meta name="theme-color" content="#10b981" />
         <meta name="mobile-web-app-capable" content="yes" />
-        <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+        <link rel="manifest" href="/manifest.json" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <link
           rel="icon"
           type="image/png"
