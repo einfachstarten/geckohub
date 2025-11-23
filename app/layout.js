@@ -1,6 +1,7 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from 'react-hot-toast';
+import ServiceWorkerRegister from "../components/ServiceWorkerRegister";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -15,11 +16,50 @@ const geistMono = Geist_Mono({
 export const metadata = {
   title: "FlitzHQ - Smart Home Dashboard",
   description: "Temperature, Humidity & Device Control",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "FlitzHQ"
+  },
+  formatDetection: {
+    telephone: false
+  },
+  openGraph: {
+    type: "website",
+    siteName: "FlitzHQ",
+    title: "FlitzHQ - Smart Home Dashboard",
+    description: "Temperature, Humidity & Device Control"
+  },
+  icons: {
+    icon: [
+      { url: "/icons/android-launchericon-192-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/android-launchericon-512-512.png", sizes: "512x512", type: "image/png" }
+    ],
+    apple: [
+      { url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }
+    ]
+  }
 };
 
 export default function RootLayout({ children }) {
   return (
     <html lang="de">
+      <head>
+        <meta
+          name="viewport"
+          content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes"
+        />
+        <meta name="theme-color" content="#10b981" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+        <link
+          rel="icon"
+          type="image/png"
+          sizes="192x192"
+          href="/icons/android-launchericon-192-192.png"
+        />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
@@ -51,6 +91,7 @@ export default function RootLayout({ children }) {
             },
           }}
         />
+        <ServiceWorkerRegister />
         {children}
       </body>
     </html>
