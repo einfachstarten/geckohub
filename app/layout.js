@@ -23,29 +23,30 @@ export default function RootLayout({ children }) {
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <Toaster 
+        <Toaster
           position="top-right"
           toastOptions={{
             duration: 4000,
             style: {
-              background: '#fff',
-              color: '#1e293b',
-              border: '1px solid #e2e8f0',
+              background: '#1e293b',
+              color: '#e2e8f0',
+              border: '1px solid #475569',
               padding: '16px',
               borderRadius: '12px',
               fontSize: '14px',
               fontWeight: '500',
+              boxShadow: '0 10px 25px -5px rgb(0 0 0 / 0.5)'
             },
             success: {
               iconTheme: {
                 primary: '#10b981',
-                secondary: '#fff',
+                secondary: '#1e293b',
               },
             },
             error: {
               iconTheme: {
                 primary: '#ef4444',
-                secondary: '#fff',
+                secondary: '#1e293b',
               },
             },
           }}
