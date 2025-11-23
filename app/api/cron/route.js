@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { sql } from '@vercel/postgres';
+import { getShellyStatus } from '@/lib/shellyStatus';
 
 // Helper: Fetch mit Timeout (9s für externe Trigger)
 const fetchWithTimeout = async (url, options = {}, timeout = 9000) => {
@@ -62,38 +63,27 @@ export async function GET(request) {
 
     // 2. Shelly Daten holen (Gen 2/3 Support)
     const shellyPromise = (async () => {
-        const getStatus = async (id) => {
-            if (!id || !process.env.SHELLY_CLOUD_KEY) return false;
-            try {
-                const res = await fetchWithTimeout(`${process.env.SHELLY_SERVER}/device/status`, {
-                    method: 'POST',
-                    body: new URLSearchParams({ id, auth_key: process.env.SHELLY_CLOUD_KEY })
-                });
-                const json = await res.json();
-                
-                // Gen 2 (switch:0)
-                if (json.data?.device_status?.['switch:0']) return json.data.device_status['switch:0'].output === true;
-                // Gen 1 (relays)
-                if (json.data?.device_status?.relays) return json.data.device_status.relays[0].ison === true;
-                
-                return false;
-            } catch (e) {
-                console.error(`[CRON] Shelly Error (${id}):`, e.message);
-                return false; 
+        try {
+            const status = await getShellyStatus({ forceRefresh: true });
+
+            if (!status.allVerified) {
+                throw new Error('Shelly Status nicht verifiziert');
             }
-        };
-        
-        const [light, heater] = await Promise.all([
-            getStatus(process.env.SHELLY_LIGHT_ID),
-            getStatus(process.env.SHELLY_HEATER_ID)
-        ]);
-        return { light, heater };
+
+            return status.status;
+        } catch (e) {
+            console.error('[CRON] Shelly Error:', e.message);
+            return null;
+        }
     })();
 
     const [goveeData, shellyData] = await Promise.all([goveePromise, shellyPromise]);
 
     // 3. Speichern
     if (goveeData && goveeData.temp !== null) {
+        if (!shellyData) {
+            return NextResponse.json({ error: "Shelly Status unverifiziert" }, { status: 503 });
+        }
         // Table check (Self-Healing)
         await sql`CREATE TABLE IF NOT EXISTS readings (
             id SERIAL PRIMARY KEY,

@@ -43,10 +43,23 @@ export default function Home() {
           
           // Fallback Live-Werte aus History
           const last = data[data.length - 1];
-          if (last) setCurrentData({ temp: last.temp, hum: last.humidity });
+      if (last) setCurrentData({ temp: last.temp, hum: last.humidity });
       }
     } catch (e) { console.error("History Error", e); }
   }, [timeRange]);
+
+  const fetchShellyStatus = useCallback(async () => {
+    try {
+      const res = await fetch('/api/status');
+      const data = await res.json();
+
+      if (data?.success && data.status) {
+        setShellyStatus(data.status);
+      }
+    } catch (error) {
+      console.error('Shelly Status Error', error);
+    }
+  }, []);
 
   const fetchLive = useCallback(async () => {
     // Govee
@@ -59,10 +72,8 @@ export default function Home() {
     }).catch(() => {});
 
     // Shelly Status
-    fetch('/api/shelly').then(r => r.json()).then(d => {
-        if(d.success) setShellyStatus(d.status);
-    }).catch(() => {});
-  }, []);
+    fetchShellyStatus();
+  }, [fetchShellyStatus]);
 
   // Check Authentication beim Mount
   useEffect(() => {
@@ -102,6 +113,7 @@ export default function Home() {
       });
       const json = await res.json();
       if(!json.success) throw new Error(json.error);
+      fetchShellyStatus();
     } catch (e) {
       setShellyStatus(prev => ({ ...prev, [target]: oldState }));
       alert("Fehler beim Schalten!");
