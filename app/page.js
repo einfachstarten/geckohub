@@ -16,10 +16,7 @@ import {
 export default function Home() {
   // --- STATE ---
   const [currentData, setCurrentData] = useState({ temp: '--', hum: '--' });
-  const [shellyStatus, setShellyStatus] = useState({
-    light: { output: false, power: 0 },
-    heater: { output: false, power: 0 }
-  });
+  const [shellyStatus, setShellyStatus] = useState({ light: false, heater: false });
   const [historyData, setHistoryData] = useState([]);
   const [deviceEvents, setDeviceEvents] = useState([]);
 
@@ -135,11 +132,8 @@ export default function Home() {
 
   const toggleShelly = async (target) => {
     setSwitching(target);
-    const oldState = shellyStatus[target]?.output || false;
-    setShellyStatus(prev => ({
-      ...prev,
-      [target]: { ...prev[target], output: !oldState }
-    }));
+    const oldState = shellyStatus[target];
+    setShellyStatus(prev => ({ ...prev, [target]: !oldState })); // Optimistic
 
     try {
       const newState = !oldState ? 'on' : 'off';
@@ -152,10 +146,7 @@ export default function Home() {
       if(!json.success) throw new Error(json.error);
       fetchShellyStatus();
     } catch (e) {
-      setShellyStatus(prev => ({
-        ...prev,
-        [target]: { ...prev[target], output: oldState }
-      }));
+      setShellyStatus(prev => ({ ...prev, [target]: oldState }));
       alert("Fehler beim Schalten!");
     } finally {
       setSwitching(null);
@@ -384,68 +375,44 @@ export default function Home() {
                  onClick={() => toggleShelly('light')}
                  disabled={switching === 'light'}
                   className={`relative group w-full flex items-center justify-between p-4 rounded-2xl border transition-all duration-300 overflow-hidden
-                    ${shellyStatus.light?.output
+                    ${shellyStatus.light
                       ? 'border-yellow-500 bg-yellow-900/30 shadow-lg shadow-yellow-500/20'
                       : 'border-slate-700/60 hover:border-slate-600 bg-slate-800/40'}`}
                 >
-                  <div className={`absolute inset-0 bg-yellow-500/15 blur-3xl transition-opacity duration-500 ${shellyStatus.light?.output ? 'opacity-100' : 'opacity-0'}`}></div>
+                  <div className={`absolute inset-0 bg-yellow-500/15 blur-3xl transition-opacity duration-500 ${shellyStatus.light ? 'opacity-100' : 'opacity-0'}`}></div>
                   <div className="relative flex items-center gap-4">
-                      <div className={`p-2 rounded-full ${shellyStatus.light?.output ? 'bg-yellow-500 text-white shadow-lg shadow-yellow-500/50' : 'bg-slate-700 text-slate-500'}`}>
+                      <div className={`p-2 rounded-full ${shellyStatus.light ? 'bg-yellow-500 text-white shadow-lg shadow-yellow-500/50' : 'bg-slate-700 text-slate-500'}`}>
                           <Lightbulb size={20}/>
                       </div>
                       <div className="text-left">
                           <div className="font-bold text-sm text-slate-200">Tageslicht</div>
-                          <div className="text-[10px] text-slate-500 uppercase font-bold">{shellyStatus.light?.output ? 'AN' : 'AUS'}</div>
+                          <div className="text-[10px] text-slate-500 uppercase font-bold">{shellyStatus.light ? 'AN' : 'AUS'}</div>
                       </div>
                   </div>
                   {switching === 'light' && <RefreshCw size={16} className="animate-spin text-slate-200"/>}
                </button>
-
-              {/* Power Display - Tageslicht */}
-              {shellyStatus.light?.output && (
-                <div className="mt-3">
-                  <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg p-3 border border-slate-700/50">
-                    <div className="text-xs text-slate-400 mb-1">Aktuelle Leistung</div>
-                    <div className="text-2xl font-bold text-yellow-400">
-                      {shellyStatus.light.power?.toFixed(1) || '0.0'} W
-                    </div>
-                  </div>
-                </div>
-              )}
 
               {/* Heizung Button */}
               <button
                  onClick={() => toggleShelly('heater')}
                  disabled={switching === 'heater'}
                   className={`relative group w-full flex items-center justify-between p-4 rounded-2xl border transition-all duration-300 ease-in-out overflow-hidden
-                    ${shellyStatus.heater?.output
+                    ${shellyStatus.heater
                       ? 'border-orange-500 bg-orange-900/30 shadow-lg shadow-orange-500/20'
                       : 'border-slate-700/60 hover:border-slate-600 bg-slate-800/40'}`}
                 >
-                  <div className={`absolute inset-0 bg-gradient-to-br from-orange-400/20 via-amber-500/10 to-red-500/20 blur-3xl transition-opacity duration-500 ${shellyStatus.heater?.output ? 'opacity-100' : 'opacity-0'}`}></div>
+                  <div className={`absolute inset-0 bg-gradient-to-br from-orange-400/20 via-amber-500/10 to-red-500/20 blur-3xl transition-opacity duration-500 ${shellyStatus.heater ? 'opacity-100' : 'opacity-0'}`}></div>
                   <div className="relative flex items-center gap-4">
-                      <div className={`p-2 rounded-full ${shellyStatus.heater?.output ? 'bg-gradient-to-br from-orange-500 to-red-500 text-white shadow-lg shadow-orange-500/50' : 'bg-slate-700 text-slate-500'}`}>
+                      <div className={`p-2 rounded-full ${shellyStatus.heater ? 'bg-gradient-to-br from-orange-500 to-red-500 text-white shadow-lg shadow-orange-500/50' : 'bg-slate-700 text-slate-500'}`}>
                           <Flame size={20}/>
                       </div>
                       <div className="text-left">
                           <div className="font-bold text-sm text-slate-200">Heizung</div>
-                          <div className="text-[10px] text-slate-500 uppercase font-bold">{shellyStatus.heater?.output ? 'AN' : 'AUS'}</div>
+                          <div className="text-[10px] text-slate-500 uppercase font-bold">{shellyStatus.heater ? 'AN' : 'AUS'}</div>
                       </div>
                   </div>
                   {switching === 'heater' && <RefreshCw size={16} className="animate-spin text-slate-200"/>}
                </button>
-
-              {/* Power Display - Heizung */}
-              {shellyStatus.heater?.output && (
-                <div className="mt-3">
-                  <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg p-3 border border-slate-700/50">
-                    <div className="text-xs text-slate-400 mb-1">Aktuelle Leistung</div>
-                    <div className="text-2xl font-bold text-orange-400">
-                      {shellyStatus.heater.power?.toFixed(1) || '0.0'} W
-                    </div>
-                  </div>
-                </div>
-              )}
           </div>
 
         </div>
