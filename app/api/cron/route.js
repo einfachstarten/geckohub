@@ -89,8 +89,8 @@ export async function GET(request) {
       `;
 
       const lastState = rows[0] || { light_status: false, heater_status: false };
-      const lightStatus = shellyData ? shellyData.light : null;
-      const heaterStatus = shellyData ? shellyData.heater : null;
+      const lightStatus = shellyData?.light?.output ?? null;
+      const heaterStatus = shellyData?.heater?.output ?? null;
 
       if (lightStatus !== null && lightStatus !== lastState.light_status) {
         await sql`
@@ -125,12 +125,28 @@ export async function GET(request) {
             temperature NUMERIC(5,2),
             humidity NUMERIC(5,2),
             light_status BOOLEAN,
-            heater_status BOOLEAN
+            heater_status BOOLEAN,
+            light_power NUMERIC(6,2) DEFAULT 0,
+            heater_power NUMERIC(6,2) DEFAULT 0
         );`;
 
         const result = await sql`
-            INSERT INTO readings (temperature, humidity, light_status, heater_status) 
-            VALUES (${goveeData.temp.toFixed(2)}, ${goveeData.hum}, ${shellyData.light}, ${shellyData.heater})
+            INSERT INTO readings (
+              temperature,
+              humidity,
+              light_status,
+              heater_status,
+              light_power,
+              heater_power
+            )
+            VALUES (
+              ${goveeData.temp.toFixed(2)},
+              ${goveeData.hum},
+              ${shellyData.light?.output || false},
+              ${shellyData.heater?.output || false},
+              ${shellyData.light?.power || 0},
+              ${shellyData.heater?.power || 0}
+            )
             RETURNING id;
         `;
         
