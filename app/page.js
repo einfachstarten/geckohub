@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import LoginScreen from '@/components/LoginScreen';
 import toast from 'react-hot-toast';
+import InstallPrompt from '@/components/InstallPrompt';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine
 } from 'recharts';
@@ -236,6 +237,7 @@ export default function Home() {
 
   return (
     <>
+      <InstallPrompt />
       {/* Background Layer */}
       <div className="fixed inset-0 -z-10">
         <Image
