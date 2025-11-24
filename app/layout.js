@@ -33,8 +33,10 @@ export const metadata = {
   },
   icons: {
     icon: [
-      { url: "/icons/android-launchericon-192-192.png", sizes: "192x192", type: "image/png" },
-      { url: "/icons/android-launchericon-512-512.png", sizes: "512x512", type: "image/png" }
+      { url: "/icons/android-launchericon-192-192.png", sizes: "192x192", type: "image/png", rel: "icon" },
+      { url: "/icons/android-launchericon-512-512.png", sizes: "512x512", type: "image/png", rel: "icon" },
+      { url: "/icons/android-launchericon-192-192.png", sizes: "192x192", type: "image/png", rel: "icon", purpose: "maskable" },
+      { url: "/icons/android-launchericon-512-512.png", sizes: "512x512", type: "image/png", rel: "icon", purpose: "maskable" }
     ],
     apple: [
       { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }
@@ -59,6 +61,12 @@ export default function RootLayout({ children }) {
           type="image/png"
           sizes="192x192"
           href="/icons/android-launchericon-192-192.png"
+        />
+        <link
+          rel="icon"
+          type="image/png"
+          sizes="512x512"
+          href="/icons/android-launchericon-512-512.png"
         />
       </head>
       <body

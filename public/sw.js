@@ -2,6 +2,7 @@ const CACHE_NAME = 'flitzhq-v1';
 const urlsToCache = [
   '/',
   '/manifest.json',
+  '/icons/android-launchericon-144-144.png',
   '/icons/android-launchericon-192-192.png',
   '/icons/android-launchericon-512-512.png'
 ];
