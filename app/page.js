@@ -5,6 +5,7 @@ import Image from 'next/image';
 import LoginScreen from '@/components/LoginScreen';
 import toast from 'react-hot-toast';
 import InstallPrompt from '@/components/InstallPrompt';
+import EventsModal from '@/components/EventsModal';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine
 } from 'recharts';
@@ -26,6 +27,7 @@ export default function Home() {
   const [switching, setSwitching] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
+  const [showEventsModal, setShowEventsModal] = useState(false);
 
   // --- LOGIC ---
   
@@ -536,15 +538,25 @@ export default function Home() {
                       <span className="text-slate-400">Heizung AUS</span>
                     </div>
                     
-                    {/* Event Count */}
-                    <span className="text-slate-600 ml-auto">
+                    {/* Event Count - Klickbar */}
+                    <button
+                      onClick={() => setShowEventsModal(true)}
+                      className="text-slate-600 hover:text-emerald-400 ml-auto transition-colors cursor-pointer font-medium hover:underline underline-offset-2"
+                    >
                       {chartEvents.length} {chartEvents.length === 1 ? 'Event' : 'Events'}
-                    </span>
+                    </button>
                   </div>
                 </div>
               )}
             </div>
           </div>
+
+          {/* Events Modal */}
+          <EventsModal
+            isOpen={showEventsModal}
+            onClose={() => setShowEventsModal(false)}
+            events={deviceEvents}
+          />
 
           </main>
         </div>
