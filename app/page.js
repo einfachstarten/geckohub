@@ -9,9 +9,9 @@ import EventsModal from '@/components/EventsModal';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine
 } from 'recharts';
-import {
+import { 
   Thermometer, Droplets, Lightbulb, Flame, Activity, RefreshCw, Lock,
-  Calendar, Zap
+  Calendar, Zap, Video, X
 } from 'lucide-react';
 
 export default function Home() {
@@ -28,6 +28,7 @@ export default function Home() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
   const [showEventsModal, setShowEventsModal] = useState(false);
+  const [showStreamModal, setShowStreamModal] = useState(false);
 
   // --- LOGIC ---
   
@@ -281,9 +282,16 @@ export default function Home() {
                   <Lock size={18} />
                 </button>
                 <button
-                  onClick={() => { 
-                    fetchLive(); 
-                    fetchHistory(); 
+                  onClick={() => setShowStreamModal(true)}
+                  className="p-2 bg-slate-800/60 backdrop-blur-sm rounded-full border border-slate-700/50 hover:border-emerald-500/50 hover:bg-emerald-500/10 transition-all text-slate-300 hover:text-emerald-300"
+                  title="Live-Stream"
+                >
+                  <Video size={18} />
+                </button>
+                <button
+                  onClick={() => {
+                    fetchLive();
+                    fetchHistory();
                     fetchEvents();
                     toast('Aktualisiere Daten...', { icon: '🔄' });
                   }}
@@ -557,6 +565,61 @@ export default function Home() {
             onClose={() => setShowEventsModal(false)}
             events={deviceEvents}
           />
+
+          {showStreamModal && (
+            <>
+              <div
+                className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
+                onClick={() => setShowStreamModal(false)}
+              />
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+                <div
+                  className="bg-slate-900/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/10 w-full max-w-4xl pointer-events-auto"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex items-center justify-between p-6 border-b border-slate-700/50">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-emerald-500/20 rounded-lg">
+                        <Video size={22} className="text-emerald-400" />
+                      </div>
+                      <div>
+                        <h2 className="text-xl font-bold text-slate-100">Live-Stream</h2>
+                        <p className="text-sm text-slate-400">Video-Stream in Vorbereitung</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setShowStreamModal(false)}
+                      className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                      aria-label="Schließen"
+                    >
+                      <X size={20} className="text-slate-400" />
+                    </button>
+                  </div>
+
+                  <div className="p-6">
+                    <div className="aspect-video w-full rounded-xl border border-dashed border-emerald-500/50 bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 flex items-center justify-center relative overflow-hidden">
+                      <div className="absolute inset-0 opacity-40 bg-[radial-gradient(circle_at_20%_20%,rgba(34,197,94,0.25),transparent_35%),radial-gradient(circle_at_80%_0%,rgba(52,211,153,0.15),transparent_25%),radial-gradient(circle_at_50%_80%,rgba(59,130,246,0.15),transparent_30%)]" />
+                      <div className="relative z-10 text-center space-y-3 px-6">
+                        <div className="inline-flex items-center justify-center p-3 rounded-full bg-emerald-500/10 border border-emerald-400/40">
+                          <Video size={28} className="text-emerald-300" />
+                        </div>
+                        <div>
+                          <p className="text-lg font-semibold text-slate-100">Live-Stream demnächst verfügbar</p>
+                          <p className="text-sm text-slate-400 mt-1">
+                            Hier erscheint der Video-Feed, sobald die Kamera angebunden ist. Bleib gespannt!
+                          </p>
+                        </div>
+                        <div className="flex items-center justify-center gap-2 text-xs text-emerald-300">
+                          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                          <span>Placeholder aktiv</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
 
           </main>
         </div>
