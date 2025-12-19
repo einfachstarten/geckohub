@@ -22,7 +22,6 @@ const EnvironmentChart = ({ data, events, range }) => {
           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
 
           <XAxis
-            type="category"
             dataKey="time"
             stroke="#94a3b8"
             tick={{ fill: '#94a3b8', fontSize: 12 }}
