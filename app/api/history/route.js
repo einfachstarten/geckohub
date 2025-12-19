@@ -1,75 +1,60 @@
 import { NextResponse } from 'next/server';
 import { sql } from '@vercel/postgres';
+import { generateTimeSlots, mergeDataIntoSlots } from '@/lib/time-slots';
 
 // Cache für History Queries
 const historyCache = new Map();
 const HISTORY_CACHE_DURATION_MS = 120000; // 2 Minuten Cache
 
 export async function GET(request) {
-  const { searchParams } = new URL(request.url);
-  const range = searchParams.get('range') || '24h';
-
-  // Cache Key
-  const cacheKey = `history_${range}`;
-  const cached = historyCache.get(cacheKey);
-  const now = Date.now();
-
-  // Cache Hit
-  if (cached && (now - cached.timestamp) < HISTORY_CACHE_DURATION_MS) {
-    console.log(`[CACHE HIT] History ${range}`);
-    return NextResponse.json(cached.data);
-  }
-
-  console.log(`[CACHE MISS] Fetching History ${range}`);
-
   try {
-    let query;
-    
-    // Hinweis: Wir runden timestamps auf volle Stunden/Minuten für saubere Graphen
-    if (range === '24h') {
-        query = sql`
-            SELECT timestamp, temperature, humidity, light_status, heater_status 
-            FROM readings 
-            WHERE timestamp > NOW() - INTERVAL '24 hours' 
-            ORDER BY timestamp ASC;`;
-    } else if (range === '7d') {
-        query = sql`
-            SELECT date_trunc('hour', timestamp) as timestamp, 
-                   AVG(temperature) as temperature, 
-                   AVG(humidity) as humidity,
-                   BOOL_OR(light_status) as light_status, -- War irgendwann in der Stunde an?
-                   BOOL_OR(heater_status) as heater_status
-            FROM readings 
-            WHERE timestamp > NOW() - INTERVAL '7 days' 
-            GROUP BY timestamp 
-            ORDER BY timestamp ASC;`;
-    } else {
-        // 30 Tage (4h Intervalle)
-        query = sql`
-            SELECT to_timestamp(floor((extract('epoch' from timestamp) / 14400 )) * 14400) as timestamp, 
-                   AVG(temperature) as temperature, 
-                   AVG(humidity) as humidity,
-                   BOOL_OR(light_status) as light_status,
-                   BOOL_OR(heater_status) as heater_status
-            FROM readings 
-            WHERE timestamp > NOW() - INTERVAL '30 days' 
-            GROUP BY timestamp 
-            ORDER BY 1 ASC;`;
+    const { searchParams } = new URL(request.url);
+    const range = searchParams.get('range') || '24h';
+
+    // Cache Key
+    const cacheKey = `history_${range}`;
+    const cached = historyCache.get(cacheKey);
+    const now = Date.now();
+
+    // Cache Hit
+    if (cached && (now - cached.timestamp) < HISTORY_CACHE_DURATION_MS) {
+      console.log(`[CACHE HIT] History ${range}`);
+      return NextResponse.json(cached.data);
     }
 
-    const result = await query;
+    console.log(`[CACHE MISS] Fetching History ${range}`);
 
-    const formatted = result.rows.map(row => ({
-      time: row.timestamp,
-      temp: row.temperature ? Number(row.temperature).toFixed(1) : null,
-      humidity: row.humidity ? parseFloat(Number(row.humidity).toFixed(1)) : null,
-      light: row.light_status,
-      heater: row.heater_status
-    }));
+    // Zeitbereich berechnen
+    let startTime;
+    if (range === '24h') {
+      startTime = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    } else if (range === '7d') {
+      startTime = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    } else if (range === '30d') {
+      startTime = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    }
+
+    // Query aus DB (readings table)
+    const query = `
+      SELECT
+        timestamp,
+        temperature,
+        humidity
+      FROM readings
+      WHERE timestamp >= $1
+      ORDER BY timestamp ASC
+    `;
+
+    // Execute Query
+    const result = await sql.query(query, [startTime.toISOString()]);
+
+    // Time-Slots generieren und Daten mergen
+    const slots = generateTimeSlots(range);
+    const mergedData = mergeDataIntoSlots(slots, result.rows, range);
 
     // Update Cache
     historyCache.set(cacheKey, {
-      data: formatted,
+      data: mergedData,
       timestamp: now
     });
 
@@ -79,20 +64,18 @@ export async function GET(request) {
       historyCache.delete(firstKey);
     }
 
-    return NextResponse.json(formatted);
+    return NextResponse.json(mergedData);
 
   } catch (error) {
-    console.error(error);
+    console.error('History API Error:', error);
     
-    // Return stale cache if available
-    if (cached) {
-      console.log('[STALE CACHE] Returning old history data');
-      return NextResponse.json(cached.data);
-    }
+    // Bei DB-Fehler: Leere Slots zurückgeben statt Fehler
+    const range = new URL(request.url).searchParams.get('range') || '24h';
+    const emptySlots = generateTimeSlots(range);
     
-    return NextResponse.json({ 
-      error: 'Verlaufsdaten nicht verfügbar',
-      details: error.message 
-    }, { status: 500 });
+    return NextResponse.json(emptySlots, {
+      status: 200,
+      headers: { 'X-Data-Status': 'no-data' }
+    });
   }
 }
