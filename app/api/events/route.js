@@ -31,7 +31,7 @@ export async function GET(request) {
 
   try {
     // FIX: Berechne Cutoff-Zeit in JavaScript statt SQL INTERVAL
-    const cutoffTime = new Date(Date.now() - hours * 60 * 60 * 1000);
+    const cutoffTime = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
 
     // SQL Query mit optionalem Device-Filter
     const query = device
