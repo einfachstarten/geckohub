@@ -6,9 +6,7 @@ import LoginScreen from '@/components/LoginScreen';
 import toast from 'react-hot-toast';
 import InstallPrompt from '@/components/InstallPrompt';
 import EventsModal from '@/components/EventsModal';
-import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine
-} from 'recharts';
+import EnvironmentChart from '@/components/EnvironmentChart';
 import { 
   Thermometer, Droplets, Lightbulb, Flame, Activity, RefreshCw, Lock,
   Calendar, Zap, Video, X
@@ -38,17 +36,11 @@ export default function Home() {
       const data = await res.json();
       
       if (Array.isArray(data) && data.length > 0) {
-          setHistoryData(data.map(d => ({
-              ...d,
-              // Fix für fehlende Linien: String -> Number Konvertierung
-              temp: d.temp ? parseFloat(d.temp) : null,
-              humidity: d.humidity ? parseFloat(d.humidity) : null,
-              displayTime: new Date(d.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-          })));
+          setHistoryData(data);
           
-          // Fallback Live-Werte aus History
-          const last = data[data.length - 1];
-      if (last) setCurrentData({ temp: last.temp, hum: last.humidity });
+          // Fallback Live-Werte aus History (suche letzten Wert mit Daten)
+          const lastWithData = [...data].reverse().find(d => d.temperature !== null && d.humidity !== null);
+          if (lastWithData) setCurrentData({ temp: lastWithData.temperature, hum: lastWithData.humidity });
       }
     } catch (e) { console.error("History Error", e); }
   }, [timeRange]);
@@ -175,8 +167,8 @@ export default function Home() {
   const getChartEvents = useCallback(() => {
     if (!historyData.length || !deviceEvents.length) return [];
 
-    // Zeitbereich aus historyData (funktioniert mit ASC und DESC)
-    const timestamps = historyData.map(d => new Date(d.time).getTime());
+    // Zeitbereich aus historyData
+    const timestamps = historyData.map(d => new Date(d.timestamp).getTime());
     const chartStart = Math.min(...timestamps);
     const chartEnd = Math.max(...timestamps);
 
@@ -192,8 +184,10 @@ export default function Home() {
 
         // Snap Event auf den nächsten History-Datenpunkt, damit ReferenceLine-X exakt matcht
         const closestDataPoint = historyData.reduce((closest, dataPoint) => {
-          const dataTime = new Date(dataPoint.time).getTime();
-          const closestTime = new Date(closest.time).getTime();
+          // dataPoint.timestamp is a Date object (if not serialized) or string (if from JSON)
+          // From API response it is string ISO
+          const dataTime = new Date(dataPoint.timestamp).getTime();
+          const closestTime = new Date(closest.timestamp).getTime();
           const currentDiff = Math.abs(dataTime - eventTimeMs);
           const closestDiff = Math.abs(closestTime - eventTimeMs);
           return currentDiff < closestDiff ? dataPoint : closest;
@@ -201,7 +195,7 @@ export default function Home() {
 
         return {
           timestamp: eventTimeMs,
-          displayTime: closestDataPoint.displayTime,
+          displayTime: closestDataPoint.time,
           device: event.device,
           action: event.action,
           source: event.source
@@ -442,69 +436,11 @@ export default function Home() {
           </div>
           
           <div className="h-80 w-full">
-            {historyData.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={historyData}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                    <XAxis dataKey="displayTime" tick={{fontSize: 10, fill: '#94a3b8'}} axisLine={false} tickLine={false} interval="preserveStartEnd" minTickGap={30}/>
-                    <YAxis yAxisId="left" domain={['auto', 'auto']} tick={{fontSize: 11, fill: '#ef4444'}} axisLine={false} tickLine={false} />
-                    <YAxis yAxisId="right" orientation="right" domain={[0, 100]} tick={{fontSize: 11, fill: '#3b82f6'}} axisLine={false} tickLine={false} />
-                    <Tooltip
-                        contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px -2px rgb(0 0 0 / 0.1)'}}
-                        labelStyle={{color: '#94a3b8', fontSize: '12px', marginBottom: '4px'}}
-                    />
-
-                    {/* Device Events als vertikale Linien */}
-                    {chartEvents.map((event, idx) => {
-                      const isLight = event.device === 'light';
-                      const isOn = event.action === 'on';
-
-                      // Farben: Gelb für Light, Orange für Heater
-                      const color = isLight ? '#eab308' : '#f97316';
-
-                      // Stil: Durchgezogen für ON, Gestrichelt für OFF
-                      const strokeDasharray = isOn ? '0' : '4 4';
-
-                      // Label: L/H für Device, ↑/↓ für ON/OFF
-                      const deviceLabel = isLight ? 'L' : 'H';
-                      const actionLabel = isOn ? '↑' : '↓';
-                      const labelText = `${deviceLabel}${actionLabel}`;
-
-                      // Label Position: ON oben, OFF unten (weniger Overlap)
-                      const labelPosition = isOn ? 'top' : 'bottom';
-
-                      return (
-                        <ReferenceLine
-                          key={`event-${idx}-${event.timestamp}`}
-                          x={event.displayTime}
-                          yAxisId="left"
-                          stroke={color}
-                          strokeWidth={2}
-                          strokeDasharray={strokeDasharray}
-                          strokeOpacity={0.6}
-                          label={{
-                            value: labelText,
-                            position: labelPosition,
-                            fontSize: 12,
-                            fontWeight: 'bold',
-                            fill: color,
-                            offset: 10
-                          }}
-                        />
-                      );
-                    })}
-
-                    <Line yAxisId="left" type="monotone" dataKey="temp" stroke="#ef4444" strokeWidth={3} dot={false} activeDot={{r: 6}} name="Temp" unit="°C" />
-                    <Line yAxisId="right" type="monotone" dataKey="humidity" stroke="#3b82f6" strokeWidth={3} dot={false} activeDot={{r: 6}} name="Feuchte" unit="%" />
-                  </LineChart>
-                </ResponsiveContainer>
-            ) : (
-                <div className="h-full flex flex-col items-center justify-center text-slate-600">
-                    <Activity size={48} className="mb-2 opacity-20" />
-                    <p className="text-slate-500">Sammle Daten... (Warte auf ersten Cron-Job)</p>
-                    <p className="text-xs mt-2 opacity-60 text-slate-600">Tipp: Rufe /api/cron einmal manuell auf</p>
-                </div>
-              )}
+            <EnvironmentChart
+              data={historyData}
+              events={chartEvents}
+              range={timeRange}
+            />
               
               {/* NEU: Event Legend */}
               {chartEvents.length > 0 && (

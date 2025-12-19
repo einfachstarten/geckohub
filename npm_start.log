@@ -1,0 +1,36 @@
+
+> geckohub@0.1.0 start
+> next start
+
+   ▲ Next.js 16.0.10
+   - Local:         http://localhost:3000
+   - Network:       http://192.168.0.2:3000
+
+ ✓ Starting...
+ ✓ Ready in 292ms
+[CACHE MISS] Fetching History 24h
+History API Error: Error [VercelPostgresError]: VercelPostgresError - 'missing_connection_string': You did not supply a 'connectionString' and no 'POSTGRES_URL' env var was found.
+    at td (.next/server/chunks/[root-of-the-server]__47b8d06c._.js:17:5808)
+    at Object.get (.next/server/chunks/[root-of-the-server]__47b8d06c._.js:17:6583) {
+  code: 'missing_connection_string'
+}
+[CACHE MISS] Fetching events (all-24)
+[EVENTS API ERROR] Error [VercelPostgresError]: VercelPostgresError - 'missing_connection_string': You did not supply a 'connectionString' and no 'POSTGRES_URL' env var was found.
+    at td (.next/server/chunks/[root-of-the-server]__47b8d06c._.js:17:5808)
+    at Object.apply (.next/server/chunks/[root-of-the-server]__47b8d06c._.js:17:6674)
+    at C (.next/server/chunks/[root-of-the-server]__b6a923df._.js:7:16) {
+  code: 'missing_connection_string'
+}
+[CACHE MISS] Fetching History 24h
+History API Error: Error [VercelPostgresError]: VercelPostgresError - 'missing_connection_string': You did not supply a 'connectionString' and no 'POSTGRES_URL' env var was found.
+    at td (.next/server/chunks/[root-of-the-server]__47b8d06c._.js:17:5808)
+    at Object.get (.next/server/chunks/[root-of-the-server]__47b8d06c._.js:17:6583) {
+  code: 'missing_connection_string'
+}
+[CACHE MISS] Fetching events (all-24)
+[EVENTS API ERROR] Error [VercelPostgresError]: VercelPostgresError - 'missing_connection_string': You did not supply a 'connectionString' and no 'POSTGRES_URL' env var was found.
+    at td (.next/server/chunks/[root-of-the-server]__47b8d06c._.js:17:5808)
+    at Object.apply (.next/server/chunks/[root-of-the-server]__47b8d06c._.js:17:6674)
+    at C (.next/server/chunks/[root-of-the-server]__b6a923df._.js:7:16) {
+  code: 'missing_connection_string'
+}
