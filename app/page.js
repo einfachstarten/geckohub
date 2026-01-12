@@ -6,6 +6,7 @@ import LoginScreen from '@/components/LoginScreen';
 import toast from 'react-hot-toast';
 import InstallPrompt from '@/components/InstallPrompt';
 import EventsModal from '@/components/EventsModal';
+import { evaluateTemperature, evaluateHumidity } from '@/lib/gecko-thresholds';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine
 } from 'recharts';
@@ -318,10 +319,28 @@ export default function Home() {
                       <p className="text-slate-500 text-xs font-bold uppercase tracking-widest">Temperatur</p>
                       <Thermometer size={24} className="text-amber-300 group-hover:text-orange-300 transition-colors"/>
                    </div>
-                    <div className="flex items-baseline gap-2">
-                       <span className="text-5xl font-extrabold text-slate-100 tracking-tighter drop-shadow-[0_8px_25px_rgba(0,0,0,0.45)]">{currentData.temp}</span>
-                       <span className="text-xl text-slate-500 ml-1">°C</span>
-                    </div>
+                    {(() => {
+                      const tempValue = Number(currentData.temp);
+                      const hasTemp = Number.isFinite(tempValue);
+                      const tempStatus = hasTemp ? evaluateTemperature(tempValue) : null;
+
+                      return (
+                        <div className="flex items-center justify-between gap-4">
+                          <div className="flex items-baseline gap-2">
+                             <span className="text-5xl font-extrabold text-slate-100 tracking-tighter drop-shadow-[0_8px_25px_rgba(0,0,0,0.45)]">{currentData.temp}</span>
+                             <span className="text-xl text-slate-500 ml-1">°C</span>
+                          </div>
+                          {tempStatus && (
+                            <div
+                              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border border-current ${tempStatus.bgColor} ${tempStatus.textColor} ${tempStatus.status === 'critical' ? 'animate-pulse-critical' : ''}`}
+                            >
+                              <span className="text-lg">{tempStatus.icon}</span>
+                              <span className="text-xs font-semibold tracking-wide">{tempStatus.label}</span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
                   <div className="mt-5 h-2 w-full bg-white/5 rounded-full overflow-hidden">
                     <div className="h-full bg-gradient-to-r from-amber-500/70 via-orange-500/70 to-rose-500/50 animate-pulse" style={{ width: '85%' }} />
                   </div>
@@ -358,10 +377,28 @@ export default function Home() {
                        <p className="text-slate-500 text-xs font-bold uppercase tracking-widest">Feuchtigkeit</p>
                        <Droplets size={24} className="text-sky-200 group-hover:text-cyan-200 transition-colors"/>
                     </div>
-                    <div className="flex items-baseline gap-2 mt-1">
-                       <span className="text-5xl font-extrabold text-slate-100">{currentData.hum}</span>
-                       <span className="text-xl text-slate-500 ml-1">%</span>
-                    </div>
+                    {(() => {
+                      const humidityValue = Number(currentData.hum);
+                      const hasHumidity = Number.isFinite(humidityValue);
+                      const humidityStatus = hasHumidity ? evaluateHumidity(humidityValue) : null;
+
+                      return (
+                        <div className="flex items-center justify-between gap-4 mt-1">
+                          <div className="flex items-baseline gap-2">
+                             <span className="text-5xl font-extrabold text-slate-100">{currentData.hum}</span>
+                             <span className="text-xl text-slate-500 ml-1">%</span>
+                          </div>
+                          {humidityStatus && (
+                            <div
+                              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border border-current ${humidityStatus.bgColor} ${humidityStatus.textColor} ${humidityStatus.status === 'critical' ? 'animate-pulse-critical' : ''}`}
+                            >
+                              <span className="text-lg">{humidityStatus.icon}</span>
+                              <span className="text-xs font-semibold tracking-wide">{humidityStatus.label}</span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
 
                     {/* Live Sensor Badge */}
                     {currentData.hum > 70 && (
