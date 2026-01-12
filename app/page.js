@@ -7,13 +7,15 @@ import toast from 'react-hot-toast';
 import InstallPrompt from '@/components/InstallPrompt';
 import EventsModal from '@/components/EventsModal';
 import ThresholdScale from '@/components/ThresholdScale';
+import SettingsModal from '@/components/SettingsModal';
+import LightScheduleSettings from '@/components/LightScheduleSettings';
 import { evaluateTemperature, evaluateHumidity, TEMP_SCALE_CONFIG, HUMIDITY_SCALE_CONFIG } from '@/lib/gecko-thresholds';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine
 } from 'recharts';
 import { 
   Thermometer, Droplets, Lightbulb, Flame, Activity, RefreshCw, Lock,
-  Calendar, Zap, Video, X
+  Calendar, Zap, Video, X, Settings
 } from 'lucide-react';
 
 export default function Home() {
@@ -31,6 +33,7 @@ export default function Home() {
   const [authChecked, setAuthChecked] = useState(false);
   const [showEventsModal, setShowEventsModal] = useState(false);
   const [showStreamModal, setShowStreamModal] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // --- LOGIC ---
   
@@ -290,17 +293,27 @@ export default function Home() {
                 >
                   <Video size={18} />
                 </button>
-                <button
-                  onClick={() => {
-                    fetchLive();
-                    fetchHistory();
-                    fetchEvents();
-                    toast('Aktualisiere Daten...', { icon: '🔄' });
-                  }}
-                  className={`p-2 bg-slate-800/60 backdrop-blur-sm rounded-full border border-slate-700/50 hover:border-slate-600 hover:bg-slate-700/80 transition-all text-slate-300 hover:text-slate-100 ${loading ? 'animate-spin text-emerald-400' : ''}`}
-                >
-                  <RefreshCw size={18} />
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      fetchLive();
+                      fetchHistory();
+                      fetchEvents();
+                      toast('Aktualisiere Daten...', { icon: '🔄' });
+                    }}
+                    className={`p-2 bg-slate-800/60 backdrop-blur-sm rounded-full border border-slate-700/50 hover:border-slate-600 hover:bg-slate-700/80 transition-all text-slate-300 hover:text-slate-100 ${loading ? 'animate-spin text-emerald-400' : ''}`}
+                    title="Daten aktualisieren"
+                  >
+                    <RefreshCw size={18} />
+                  </button>
+                  <button
+                    onClick={() => setIsSettingsOpen(true)}
+                    className="p-2 bg-slate-800/60 backdrop-blur-sm rounded-full border border-slate-700/50 hover:border-slate-600 hover:bg-slate-700/80 transition-all text-slate-300 hover:text-slate-100"
+                    title="Einstellungen"
+                  >
+                    <Settings size={18} />
+                  </button>
+                </div>
               </div>
             </div>
           </header>
@@ -663,6 +676,21 @@ export default function Home() {
               </div>
             </>
           )}
+
+          {/* Settings Modal */}
+          <SettingsModal
+            isOpen={isSettingsOpen}
+            onClose={() => setIsSettingsOpen(false)}
+          >
+            <LightScheduleSettings />
+
+            {/* Platz für zukünftige Settings */}
+            {/* Beispiel:
+            <div className="mt-8 pt-8 border-t border-slate-700/50">
+              <FutureSettingComponent />
+            </div>
+            */}
+          </SettingsModal>
 
           </main>
         </div>
