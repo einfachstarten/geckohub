@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 import InstallPrompt from '@/components/InstallPrompt';
 import EventsModal from '@/components/EventsModal';
 import ThresholdScale from '@/components/ThresholdScale';
+import VerticalThresholdScale from '@/components/VerticalThresholdScale';
 import SettingsModal from '@/components/SettingsModal';
 import LightScheduleSettings from '@/components/LightScheduleSettings';
 import { evaluateTemperature, evaluateHumidity, TEMP_SCALE_CONFIG, HUMIDITY_SCALE_CONFIG } from '@/lib/gecko-thresholds';
@@ -497,70 +498,107 @@ export default function Home() {
             </div>
           </div>
           
-          <div className="h-80 w-full">
+          <div className="w-full">
             {historyData.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={historyData}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                    <XAxis dataKey="displayTime" tick={{fontSize: 10, fill: '#94a3b8'}} axisLine={false} tickLine={false} interval="preserveStartEnd" minTickGap={30}/>
-                    <YAxis yAxisId="left" domain={['auto', 'auto']} tick={{fontSize: 11, fill: '#ef4444'}} axisLine={false} tickLine={false} />
-                    <YAxis yAxisId="right" orientation="right" domain={[0, 100]} tick={{fontSize: 11, fill: '#3b82f6'}} axisLine={false} tickLine={false} />
-                    <Tooltip
-                        contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px -2px rgb(0 0 0 / 0.1)'}}
-                        labelStyle={{color: '#94a3b8', fontSize: '12px', marginBottom: '4px'}}
-                    />
-
-                    {/* Device Events als vertikale Linien */}
-                    {chartEvents.map((event, idx) => {
-                      const isLight = event.device === 'light';
-                      const isOn = event.action === 'on';
-
-                      // Farben: Gelb für Light, Orange für Heater
-                      const color = isLight ? '#eab308' : '#f97316';
-
-                      // Stil: Durchgezogen für ON, Gestrichelt für OFF
-                      const strokeDasharray = isOn ? '0' : '4 4';
-
-                      // Label: L/H für Device, ↑/↓ für ON/OFF
-                      const deviceLabel = isLight ? 'L' : 'H';
-                      const actionLabel = isOn ? '↑' : '↓';
-                      const labelText = `${deviceLabel}${actionLabel}`;
-
-                      // Label Position: ON oben, OFF unten (weniger Overlap)
-                      const labelPosition = isOn ? 'top' : 'bottom';
-
-                      return (
-                        <ReferenceLine
-                          key={`event-${idx}-${event.timestamp}`}
-                          x={event.displayTime}
-                          yAxisId="left"
-                          stroke={color}
-                          strokeWidth={2}
-                          strokeDasharray={strokeDasharray}
-                          strokeOpacity={0.6}
-                          label={{
-                            value: labelText,
-                            position: labelPosition,
-                            fontSize: 12,
-                            fontWeight: 'bold',
-                            fill: color,
-                            offset: 10
-                          }}
-                        />
-                      );
-                    })}
-
-                    <Line yAxisId="left" type="monotone" dataKey="temp" stroke="#ef4444" strokeWidth={3} dot={false} activeDot={{r: 6}} name="Temp" unit="°C" />
-                    <Line yAxisId="right" type="monotone" dataKey="humidity" stroke="#3b82f6" strokeWidth={3} dot={false} activeDot={{r: 6}} name="Feuchte" unit="%" />
-                  </LineChart>
-                </ResponsiveContainer>
-            ) : (
-                <div className="h-full flex flex-col items-center justify-center text-slate-600">
-                    <Activity size={48} className="mb-2 opacity-20" />
-                    <p className="text-slate-500">Sammle Daten... (Warte auf ersten Cron-Job)</p>
-                    <p className="text-xs mt-2 opacity-60 text-slate-600">Tipp: Rufe /api/cron einmal manuell auf</p>
+              <div className="flex items-stretch gap-4">
+                <div className="h-[400px]">
+                  <VerticalThresholdScale
+                    min={TEMP_SCALE_CONFIG.min}
+                    max={TEMP_SCALE_CONFIG.max}
+                    thresholds={TEMP_SCALE_CONFIG.thresholds}
+                    unit="°"
+                    side="left"
+                  />
                 </div>
-              )}
+
+                <div className="flex-1 h-[400px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={historyData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                      <XAxis
+                        dataKey="displayTime"
+                        stroke="#94a3b8"
+                        style={{ fontSize: '12px' }}
+                        tick={{ fill: '#94a3b8' }}
+                      />
+                      <YAxis
+                        yAxisId="temp"
+                        hide={true}
+                        domain={[TEMP_SCALE_CONFIG.min, TEMP_SCALE_CONFIG.max]}
+                      />
+                      <YAxis
+                        yAxisId="humidity"
+                        hide={true}
+                        domain={[HUMIDITY_SCALE_CONFIG.min, HUMIDITY_SCALE_CONFIG.max]}
+                      />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                          border: '1px solid #475569',
+                          borderRadius: '8px',
+                          backdropFilter: 'blur(8px)'
+                        }}
+                        labelStyle={{ color: '#cbd5e1' }}
+                        itemStyle={{ color: '#cbd5e1' }}
+                      />
+
+                      {chartEvents.map((event, idx) => {
+                        const isLight = event.device === 'light';
+                        const isOn = event.action === 'on';
+                        const color = isLight ? '#eab308' : '#f97316';
+                        const strokeDasharray = isOn ? '0' : '4 4';
+
+                        return (
+                          <ReferenceLine
+                            key={`event-${idx}-${event.timestamp}`}
+                            x={event.displayTime}
+                            stroke={color}
+                            strokeDasharray={strokeDasharray}
+                            strokeWidth={2}
+                            strokeOpacity={0.6}
+                          />
+                        );
+                      })}
+
+                      <Line
+                        yAxisId="temp"
+                        type="monotone"
+                        dataKey="temp"
+                        stroke="#ef4444"
+                        strokeWidth={2}
+                        dot={false}
+                        name="Temperatur"
+                      />
+                      <Line
+                        yAxisId="humidity"
+                        type="monotone"
+                        dataKey="humidity"
+                        stroke="#3b82f6"
+                        strokeWidth={2}
+                        dot={false}
+                        name="Luftfeuchtigkeit"
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+
+                <div className="h-[400px]">
+                  <VerticalThresholdScale
+                    min={HUMIDITY_SCALE_CONFIG.min}
+                    max={HUMIDITY_SCALE_CONFIG.max}
+                    thresholds={HUMIDITY_SCALE_CONFIG.thresholds}
+                    unit="%"
+                    side="right"
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="h-[400px] flex flex-col items-center justify-center text-slate-600">
+                <Activity size={48} className="mb-2 opacity-20" />
+                <p className="text-slate-500">Sammle Daten... (Warte auf ersten Cron-Job)</p>
+                <p className="text-xs mt-2 opacity-60 text-slate-600">Tipp: Rufe /api/cron einmal manuell auf</p>
+              </div>
+            )}
               
               {/* NEU: Event Legend */}
               {chartEvents.length > 0 && (
