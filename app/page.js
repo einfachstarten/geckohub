@@ -322,10 +322,6 @@ export default function Home() {
                        <span className="text-5xl font-extrabold text-slate-100 tracking-tighter drop-shadow-[0_8px_25px_rgba(0,0,0,0.45)]">{currentData.temp}</span>
                        <span className="text-xl text-slate-500 ml-1">°C</span>
                     </div>
-                  <div className="mt-6 flex items-center gap-2">
-                     <div className={`w-2 h-2 rounded-full ${currentData.temp > 0 ? 'bg-amber-400 shadow-[0_0_14px_rgba(251,191,36,0.75)]' : 'bg-slate-500'}`}></div>
-                     <span className="text-xs font-semibold text-amber-100">Heat signature online</span>
-                  </div>
                   <div className="mt-5 h-2 w-full bg-white/5 rounded-full overflow-hidden">
                     <div className="h-full bg-gradient-to-r from-amber-500/70 via-orange-500/70 to-rose-500/50 animate-pulse" style={{ width: '85%' }} />
                   </div>
