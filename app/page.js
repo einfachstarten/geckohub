@@ -6,7 +6,8 @@ import LoginScreen from '@/components/LoginScreen';
 import toast from 'react-hot-toast';
 import InstallPrompt from '@/components/InstallPrompt';
 import EventsModal from '@/components/EventsModal';
-import { evaluateTemperature, evaluateHumidity } from '@/lib/gecko-thresholds';
+import ThresholdScale from '@/components/ThresholdScale';
+import { evaluateTemperature, evaluateHumidity, TEMP_SCALE_CONFIG, HUMIDITY_SCALE_CONFIG } from '@/lib/gecko-thresholds';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine
 } from 'recharts';
@@ -323,27 +324,34 @@ export default function Home() {
                       const tempValue = Number(currentData.temp);
                       const hasTemp = Number.isFinite(tempValue);
                       const tempStatus = hasTemp ? evaluateTemperature(tempValue) : null;
+                      const tempScaleValue = hasTemp ? tempValue : TEMP_SCALE_CONFIG.min;
 
                       return (
-                        <div className="flex items-center justify-between gap-4">
-                          <div className="flex items-baseline gap-2">
-                             <span className="text-5xl font-extrabold text-slate-100 tracking-tighter drop-shadow-[0_8px_25px_rgba(0,0,0,0.45)]">{currentData.temp}</span>
-                             <span className="text-xl text-slate-500 ml-1">°C</span>
-                          </div>
-                          {tempStatus && (
-                            <div
-                              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border border-current ${tempStatus.bgColor} ${tempStatus.textColor} ${tempStatus.status === 'critical' ? 'animate-pulse-critical' : ''}`}
-                            >
-                              <span className="text-lg">{tempStatus.icon}</span>
-                              <span className="text-xs font-semibold tracking-wide">{tempStatus.label}</span>
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between gap-4">
+                            <div className="flex items-baseline gap-2">
+                              <span className="text-5xl font-extrabold text-slate-100 tracking-tighter drop-shadow-[0_8px_25px_rgba(0,0,0,0.45)]">{currentData.temp}</span>
+                              <span className="text-xl text-slate-500 ml-1">°C</span>
                             </div>
-                          )}
+                            {tempStatus && (
+                              <div
+                                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border border-current ${tempStatus.bgColor} ${tempStatus.textColor} ${tempStatus.status === 'critical' ? 'animate-pulse-critical' : ''}`}
+                              >
+                                <span className="text-lg">{tempStatus.icon}</span>
+                                <span className="text-xs font-semibold tracking-wide">{tempStatus.label}</span>
+                              </div>
+                            )}
+                          </div>
+                          <ThresholdScale
+                            value={tempScaleValue}
+                            min={TEMP_SCALE_CONFIG.min}
+                            max={TEMP_SCALE_CONFIG.max}
+                            thresholds={TEMP_SCALE_CONFIG.thresholds}
+                            type="temperature"
+                          />
                         </div>
                       );
                     })()}
-                  <div className="mt-5 h-2 w-full bg-white/5 rounded-full overflow-hidden">
-                    <div className="h-full bg-gradient-to-r from-amber-500/70 via-orange-500/70 to-rose-500/50 animate-pulse" style={{ width: '85%' }} />
-                  </div>
                </div>
             </div>
             {/* Humidity Card */}
@@ -381,32 +389,34 @@ export default function Home() {
                       const humidityValue = Number(currentData.hum);
                       const hasHumidity = Number.isFinite(humidityValue);
                       const humidityStatus = hasHumidity ? evaluateHumidity(humidityValue) : null;
+                      const humidityScaleValue = hasHumidity ? humidityValue : HUMIDITY_SCALE_CONFIG.min;
 
                       return (
-                        <div className="flex items-center justify-between gap-4 mt-1">
-                          <div className="flex items-baseline gap-2">
-                             <span className="text-5xl font-extrabold text-slate-100">{currentData.hum}</span>
-                             <span className="text-xl text-slate-500 ml-1">%</span>
-                          </div>
-                          {humidityStatus && (
-                            <div
-                              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border border-current ${humidityStatus.bgColor} ${humidityStatus.textColor} ${humidityStatus.status === 'critical' ? 'animate-pulse-critical' : ''}`}
-                            >
-                              <span className="text-lg">{humidityStatus.icon}</span>
-                              <span className="text-xs font-semibold tracking-wide">{humidityStatus.label}</span>
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between gap-4 mt-1">
+                            <div className="flex items-baseline gap-2">
+                              <span className="text-5xl font-extrabold text-slate-100">{currentData.hum}</span>
+                              <span className="text-xl text-slate-500 ml-1">%</span>
                             </div>
-                          )}
+                            {humidityStatus && (
+                              <div
+                                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border border-current ${humidityStatus.bgColor} ${humidityStatus.textColor} ${humidityStatus.status === 'critical' ? 'animate-pulse-critical' : ''}`}
+                              >
+                                <span className="text-lg">{humidityStatus.icon}</span>
+                                <span className="text-xs font-semibold tracking-wide">{humidityStatus.label}</span>
+                              </div>
+                            )}
+                          </div>
+                          <ThresholdScale
+                            value={humidityScaleValue}
+                            min={HUMIDITY_SCALE_CONFIG.min}
+                            max={HUMIDITY_SCALE_CONFIG.max}
+                            thresholds={HUMIDITY_SCALE_CONFIG.thresholds}
+                            type="humidity"
+                          />
                         </div>
                       );
                     })()}
-
-                    {/* Live Sensor Badge */}
-                    {currentData.hum > 70 && (
-                      <div className="flex items-center gap-1.5 mt-3 relative z-10">
-                        <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
-                        <span className="text-[10px] text-blue-400 font-bold uppercase tracking-wider">Hohe Luftfeuchtigkeit</span>
-                      </div>
-                    )}
                  </div>
               </div>
               {/* Control Panel */}
