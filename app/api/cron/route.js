@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { sql } from '@vercel/postgres';
 import { getShellyStatus } from '@/lib/shellyStatus';
+import { sendCriticalAlert } from '@/lib/pushService';
 
 // Helper: Fetch mit Timeout (9s für externe Trigger)
 const fetchWithTimeout = async (url, options = {}, timeout = 9000) => {
@@ -133,7 +134,50 @@ export async function GET(request) {
             VALUES (${goveeData.temp.toFixed(2)}, ${goveeData.hum}, ${shellyData.light}, ${shellyData.heater})
             RETURNING id;
         `;
-        
+
+        // NEU: Push Notification Check
+        try {
+          const settingsResult = await sql`
+            SELECT * FROM notification_settings
+            WHERE push_enabled = true
+            ORDER BY id DESC
+            LIMIT 1
+          `;
+
+          if (settingsResult.rows.length > 0) {
+            const settings = settingsResult.rows[0];
+
+            // Cooldown check
+            const lastNotification = settings.updated_at ? new Date(settings.updated_at) : null;
+            const now = new Date();
+            const minutesSinceLastNotification = lastNotification
+              ? (now - lastNotification) / 1000 / 60
+              : 999;
+
+            if (minutesSinceLastNotification >= settings.notification_cooldown_minutes) {
+              const temperature = Number(goveeData.temp);
+              const humidity = Number(goveeData.hum);
+
+              // Temperature check
+              if (temperature < settings.temp_critical_low) {
+                await sendCriticalAlert('temp_low', temperature, settings.temp_critical_low);
+              } else if (temperature > settings.temp_critical_high) {
+                await sendCriticalAlert('temp_high', temperature, settings.temp_critical_high);
+              }
+
+              // Humidity check
+              if (humidity < settings.humidity_critical_low) {
+                await sendCriticalAlert('humidity_low', humidity, settings.humidity_critical_low);
+              } else if (humidity > settings.humidity_critical_high) {
+                await sendCriticalAlert('humidity_high', humidity, settings.humidity_critical_high);
+              }
+            }
+          }
+        } catch (notificationError) {
+          console.error('Notification check failed:', notificationError);
+          // Don't throw - sensor data is more important
+        }
+
         return NextResponse.json({ success: true, id: result.rows[0].id, data: { ...goveeData, ...shellyData } });
     } else {
         return NextResponse.json({ error: "No Sensor Data" }, { status: 500 });

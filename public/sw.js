@@ -137,3 +137,30 @@ async function cacheFirstStrategy(request) {
     throw error;
   }
 }
+
+// Push Notification Handler
+self.addEventListener('push', function(event) {
+  const data = event.data ? event.data.json() : {};
+
+  const options = {
+    body: data.body || 'FlitzHQ Notification',
+    icon: data.icon || '/icon-192.png',
+    badge: data.badge || '/icon-192.png',
+    tag: data.tag || 'flitzhq-notification',
+    requireInteraction: data.requireInteraction || false,
+    data: data.data || {}
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(data.title || 'FlitzHQ', options)
+  );
+});
+
+// Notification Click Handler
+self.addEventListener('notificationclick', function(event) {
+  event.notification.close();
+
+  event.waitUntil(
+    clients.openWindow(event.notification.data.url || 'https://flitzhq.vercel.app')
+  );
+});

@@ -9,6 +9,7 @@ import EventsModal from '@/components/EventsModal';
 import ThresholdScale from '@/components/ThresholdScale';
 import SettingsModal from '@/components/SettingsModal';
 import LightScheduleSettings from '@/components/LightScheduleSettings';
+import NotificationSettings from '@/components/NotificationSettings';
 import { evaluateTemperature, evaluateHumidity, TEMP_SCALE_CONFIG, HUMIDITY_SCALE_CONFIG } from '@/lib/gecko-thresholds';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine
@@ -681,16 +682,17 @@ export default function Home() {
           <SettingsModal
             isOpen={isSettingsOpen}
             onClose={() => setIsSettingsOpen(false)}
-          >
-            <LightScheduleSettings />
-
-            {/* Platz für zukünftige Settings */}
-            {/* Beispiel:
-            <div className="mt-8 pt-8 border-t border-slate-700/50">
-              <FutureSettingComponent />
-            </div>
-            */}
-          </SettingsModal>
+            tabs={[
+              {
+                label: 'Automationen',
+                content: <LightScheduleSettings />
+              },
+              {
+                label: 'Benachrichtigungen',
+                content: <NotificationSettings />
+              }
+            ]}
+          />
 
           </main>
         </div>
